@@ -31,6 +31,8 @@ The first run downloads the model (about 3 GB, cached in your Hugging Face cache
 It runs on an NVIDIA GPU with about 4 GB free memory (a phrase takes about a second); without a GPU it
 falls back to the CPU, which works but is much slower. The camera window shows "Listening...",
 "Thinking..." and "Typed" while it works.
+If voice search hears nothing, check that your microphone is not muted (Settings > System > Sound > Input,
+or your laptop's mic mute key) and that Windows allows apps to use it (Settings > Privacy & security > Microphone).
 If you get an error about `cv2.imshow` not being implemented, you have `opencv-python-headless`
 installed as well. Uninstall both and reinstall only `opencv-python`.
 
