@@ -59,9 +59,9 @@ def save_banner():
     hs.draw_skeleton(draw, hs.OPEN_HAND, 1070, 175, 1.25)
     hs.draw_skeleton(draw, hs.SEARCH_HAND, 830, 200, 0.8)
 
-    title = hs.load(hs.TITLE_FONT, 92)
+    title = hs.load(hs.TITLE_FONT, 100, 800)
     draw.text((70, 55), "Gesture-App", font=title, fill=hs.ACCENT)
-    small = hs.load(hs.TEXT_FONT, 32)
+    small = hs.load(hs.TEXT_FONT, 32, 600)
     x = 74
     avatar = Image.open(os.path.join(DOCS, "izu83.png"))
     logo = Image.open(os.path.join(DOCS, "python-logo.png"))

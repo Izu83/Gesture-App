@@ -158,7 +158,7 @@ Gesture-App/
 │   ├── voice.py             microphone listening and offline speech recognition
 │   ├── commands.py          turns what you said into an action (app, site or typing)
 │   ├── help_screen.py       draws the Help window
-│   └── Limelight-Regular.ttf  font for the on-screen text (Google Fonts, SIL Open Font License)
+│   └── Baloo2.ttf             font for the on-screen text (Baloo 2, Google Fonts, SIL Open Font License)
 ├── tools/
 │   └── make_readme_images.py  regenerates the images in docs/
 └── docs/                    banner and gesture pictures used in this README
@@ -180,6 +180,6 @@ Sensitivity is set by constants near the top of `src/camera.py`:
 
 ## Credits
 
-Built with [OpenCV](https://opencv.org), [MediaPipe](https://developers.google.com/mediapipe), [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (OpenAI Whisper), [Pillow](https://python-pillow.org) and the [Limelight](https://fonts.google.com/specimen/Limelight) font.
+Built with [OpenCV](https://opencv.org), [MediaPipe](https://developers.google.com/mediapipe), [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (OpenAI Whisper), [Pillow](https://python-pillow.org) and the [Baloo 2](https://fonts.google.com/specimen/Baloo+2) font.
 
 Made by [Izu83](https://github.com/Izu83).

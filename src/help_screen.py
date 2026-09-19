@@ -6,8 +6,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(__file__)
-TITLE_FONT = os.path.join(HERE, "Limelight-Regular.ttf")
-TEXT_FONT = r"C:\Windows\Fonts\segoeui.ttf"
+FONT_PATH = os.path.join(HERE, "Baloo2.ttf")  # Baloo 2, a variable-weight font
+TITLE_FONT = TEXT_FONT = FONT_PATH
 
 NIGHT = (0, 15, 8)  # #000F08
 IMPERIAL = (251, 54, 64)  # #FB3640
@@ -116,11 +116,17 @@ def draw_arrow_v(draw, y_from, y_to, x):
     draw.polygon([(x, y_to), (x - 12, y_to - 18 * d), (x + 12, y_to - 18 * d)], fill=ACCENT)
 
 
-def load(path, size):
+def load(path, size, weight=None):
     try:
-        return ImageFont.truetype(path, size)
+        font = ImageFont.truetype(path, size)
     except OSError:
         return ImageFont.load_default()
+    if weight:
+        try:
+            font.set_variation_by_axes([weight])  # 400 regular ... 800 extra bold
+        except (OSError, ValueError, AttributeError):
+            pass
+    return font
 
 
 def centered(draw, text, font, cx, y, fill):
@@ -148,8 +154,8 @@ def tile(draw, col, row, title, how, does, art, fonts):
 
 
 def build_help_image():
-    fonts = {"title": load(TITLE_FONT, 52), "name": load(TITLE_FONT, 26),
-             "sub": load(TEXT_FONT, 17)}
+    fonts = {"title": load(TITLE_FONT, 60, 800), "name": load(TITLE_FONT, 30, 700),
+             "sub": load(TEXT_FONT, 18, 500)}
     rows = 5
     img = Image.new("RGB", (TILE_W * COLS, TITLE_H + TILE_H * rows + FOOTER_H), BG)
     draw = ImageDraw.Draw(img)

@@ -28,7 +28,7 @@ INDEX_MCP = 5
 
 TEXT_COLOR = (251, 54, 64)  # Imperial #FB3640 (RGB)
 FONT_CANDIDATES = [
-    os.path.join(os.path.dirname(__file__), "Limelight-Regular.ttf"),
+    os.path.join(os.path.dirname(__file__), "Baloo2.ttf"),
     r"C:\Windows\Fonts\Inkfree.ttf",
     r"C:\Windows\Fonts\segoescb.ttf",
     r"C:\Windows\Fonts\comicbd.ttf",
@@ -319,9 +319,14 @@ def is_search(lm):
 def load_font(size):
     for path in FONT_CANDIDATES:
         try:
-            return ImageFont.truetype(path, size)
+            font = ImageFont.truetype(path, size)
         except OSError:
             continue
+        try:
+            font.set_variation_by_axes([700])  # bold weight of the Baloo 2 variable font
+        except (OSError, ValueError, AttributeError):
+            pass  # not a variable font: use it as is
+        return font
     return ImageFont.load_default()
 
 
