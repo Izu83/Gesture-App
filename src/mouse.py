@@ -1,11 +1,13 @@
-"""Air mouse: your index fingertip moves the cursor, your thumb clicks and drags.
+"""Air mouse: your index fingertip moves the cursor, your pinky clicks and drags.
 
 Point (index finger only) and hold to start; make a fist and hold to stop.
+Raise your pinky to click (keep it up to drag) and your middle finger for a right click.
 While it is on, the other gestures are switched off so they cannot fire by accident.
 """
 import ctypes
 import math
 import time
+from collections import deque
 
 import cv2
 
@@ -21,14 +23,16 @@ REGION = (0.2, 0.8, 0.15, 0.75)
 POINT_HOLD_S = 0.8  # hold the pointing sign this long to start
 EXIT_HOLD_S = 0.7  # hold a fist this long to stop
 AUTO_EXIT_S = 6.0  # stop by itself if your hand is out of view this long
-PINCH_ON = 0.30  # thumb tip this close to the index finger (x hand size) = pressed
-PINCH_OFF = 0.42  # ...and released when it is farther than this
+PINKY_ON = 1.35  # pinky tip this far from the wrist, compared with its base = pinky up (pressed)
+PINKY_OFF = 1.15  # ...and released when it drops below this
+SETTLE_BACK_S = 0.12  # on a press, put the cursor back to where it was this long ago
+CLICK_FREEZE_S = 0.15  # ...and hold it there this long, so raising the pinky cannot drag it
 RIGHT_CLICK_HOLD_S = 0.25  # hold the middle finger up this long for a right click
 DRAG_AFTER_S = 0.4  # a press held this long is shown as "Dragging"
 FLASH_S = 0.6
 
-WRIST, THUMB_TIP, THUMB_IP, INDEX_MCP, INDEX_PIP, INDEX_TIP = 0, 4, 3, 5, 6, 8
-PINKY_MCP = 17
+WRIST, THUMB_TIP, THUMB_IP, INDEX_TIP = 0, 4, 3, 8
+PINKY_MCP, PINKY_TIP = 17, 20
 
 
 def _dist(a, b):
@@ -101,6 +105,8 @@ class AirMouse:
         self._smooth = Smoother()
         self._pressed = False
         self._press_since = 0.0
+        self._freeze_until = 0.0
+        self._trail = deque()  # recent cursor positions: (time, x, y)
         self._middle_since = None
         self._right_armed = True
         self._fist_since = None
@@ -113,6 +119,7 @@ class AirMouse:
         self._last_seen = now
         self._smooth.reset()
         self._pressed = False
+        self._trail.clear()
         self._middle_since = self._fist_since = None
         self._right_armed = True
         self._flash, self._flash_until = "Mouse mode on", now + FLASH_S
@@ -165,17 +172,28 @@ class AirMouse:
             x0, x1, y0, y1 = REGION
             nx = min(max((lm[INDEX_TIP].x - x0) / (x1 - x0), 0.0), 1.0)
             ny = min(max((lm[INDEX_TIP].y - y0) / (y1 - y0), 0.0), 1.0)
-            move_cursor(*self._smooth(nx * (SCREEN_W - 1), ny * (SCREEN_H - 1)))
+            if now >= self._freeze_until:
+                x, y = self._smooth(nx * (SCREEN_W - 1), ny * (SCREEN_H - 1))
+                move_cursor(x, y)
+                self._trail.append((now, x, y))
+                while self._trail and now - self._trail[0][0] > 0.5:
+                    self._trail.popleft()
 
-        # Thumb tip to the side of the index finger = press (a quick tap is a click,
-        # holding it while you move is a drag).
-        size = _dist(lm[WRIST], lm[9])
-        gap = _dist(lm[THUMB_TIP], lm[INDEX_PIP]) / size if size else 1.0
-        if not self._pressed and gap < PINCH_ON and not middle_up:
+        # Pinky up = press. A quick tap is a click; keeping it up while you move is a drag.
+        reach = _dist(lm[PINKY_TIP], lm[WRIST]) / max(_dist(lm[PINKY_MCP], lm[WRIST]), 1e-6)
+        if not self._pressed and reach > PINKY_ON and not middle_up:
+            # Raising the pinky nudges the hand, so go back to where the cursor was a
+            # moment ago and keep it there briefly before pressing.
+            back = [p for p in self._trail if p[0] <= now - SETTLE_BACK_S]
+            if back:
+                _, x, y = back[-1]
+                move_cursor(x, y)
+                self._smooth.x, self._smooth.y = x, y
+            self._freeze_until = now + CLICK_FREEZE_S
             self._pressed, self._press_since = True, now
             button("left", True)
             self._flash, self._flash_until = "Click", now + 0.25
-        elif self._pressed and gap > PINCH_OFF:
+        elif self._pressed and reach < PINKY_OFF:
             self._pressed = False
             button("left", False)
 

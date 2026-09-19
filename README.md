@@ -87,7 +87,7 @@ Hold the sign steady for a moment. The app waits about a third of a second after
 | **Escape** | Only the pinky up, other fingers curled | Presses the Esc key (skipped while the Camera window is in front, since Esc would quit the app) |
 | **Enter** | Ring and pinky up, index and middle curled | Presses the Enter key |
 | **Mouse Mode** | Point with your index finger only (thumb tucked in) and hold | Starts the [air mouse](#air-mouse): your fingertip moves the cursor. A held fist stops it |
-| **Mouse Click** | In mouse mode: thumb to the side of your index finger | Tap = click, hold = drag. Middle finger up = right click |
+| **Mouse Click** | In mouse mode: raise your pinky | Tap = click, keep it up = drag. Middle finger up = right click |
 
 > **Careful with Push:** a two-hand push asks the window in front to close, like clicking its X. Programs with unsaved work will still ask you to save first.
 
@@ -124,7 +124,7 @@ Use your hand as a mouse:
 
 1. **Start:** point with your index finger only (thumb tucked in, other fingers curled) and hold for about a second. The camera window shows "Mouse mode on".
 2. **Move:** your index fingertip moves the cursor. A thin white rectangle in the camera window shows the part of the picture that covers the whole screen, so you can reach every edge. The cursor is smoothed, steady when you move slowly and quick when you move fast.
-3. **Click and drag:** touch the side of your index finger with your thumb. A quick tap is a click. Keep the thumb pressed while you move to drag.
+3. **Click and drag:** raise your pinky. A quick tap is a click. Keep the pinky up while you move to drag, and lower it to let go. The cursor jumps back to where it was a moment before, so raising the pinky does not nudge your click.
 4. **Right click:** raise your middle finger for a moment. The cursor stays put while you do it.
 5. **Stop:** make a fist and hold. It also stops by itself if your hand is out of view for 6 seconds.
 

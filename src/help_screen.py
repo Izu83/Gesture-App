@@ -41,7 +41,6 @@ THUMB = {
     "out": [(115, 245), (90, 218), (68, 196), (48, 178)],
     "in": [(115, 245), (126, 222), (138, 208), (150, 202)],
     "loop": [(115, 245), (95, 215), (82, 180), (76, 140)],
-    "press": [(115, 245), (104, 205), (108, 168), (118, 142)],  # tip on the side of the index
 }
 
 
@@ -80,7 +79,7 @@ L_HAND = hand("out", "up", "curl", "curl", "curl")
 PINKY_HAND = hand("in", "curl", "curl", "curl", "up")
 RING_HAND = hand("in", "curl", "curl", "up", "up")
 POINT_HAND = hand("in", "up", "curl", "curl", "curl")
-CLICK_HAND = hand("press", "up", "curl", "curl", "curl")
+CLICK_HAND = hand("in", "up", "curl", "curl", "up")  # pointing, with the pinky raised
 
 
 def draw_skeleton(draw, pts, cx, cy, scale=1.0, mirror=False):
@@ -193,13 +192,14 @@ def build_help_image():
                 draw_arrow_v(d, y + 80, y + 250, x + 105)
         return art
 
-    def mouse(pts, click):
+    def mouse(pts, ring=None):
         def art(d, x, y):
             draw_skeleton(d, pts, x - 20, y + 190)
-            tip_x, tip_y = x - 20 + (POINT_HAND[8][0] - 150), y + 190 + (POINT_HAND[8][1] - 170)
+            tip_x, tip_y = x - 20 + (pts[8][0] - 150), y + 190 + (pts[8][1] - 170)
             draw_cursor(d, tip_x + 30, tip_y - 45)
-            if click:  # click rings at the fingertip
-                d.ellipse([tip_x - 20, tip_y - 20, tip_x + 20, tip_y + 20], outline=ACCENT, width=4)
+            if ring is not None:  # a ring around the landmark that does the clicking
+                rx, ry = x - 20 + (pts[ring][0] - 150), y + 190 + (pts[ring][1] - 170)
+                d.ellipse([rx - 20, ry - 20, rx + 20, ry + 20], outline=ACCENT, width=4)
         return art
 
     def growth(outward):
@@ -239,9 +239,9 @@ def build_help_image():
     tile(draw, 0, 4, "Enter", "Ring and pinky up,\nindex and middle curled",
          "Presses the Enter key", single(RING_HAND), fonts)
     tile(draw, 1, 4, "Mouse Mode", "Point with your index finger\nand hold",
-         "Your fingertip moves the cursor.\nA fist held stops it", mouse(POINT_HAND, False), fonts)
-    tile(draw, 2, 4, "Mouse Click", "In mouse mode: thumb to the\nside of your index finger",
-         "Tap = click, hold = drag\nMiddle finger up = right click", mouse(CLICK_HAND, True), fonts)
+         "Your fingertip moves the cursor.\nA fist held stops it", mouse(POINT_HAND), fonts)
+    tile(draw, 2, 4, "Mouse Click", "In mouse mode:\nraise your pinky",
+         "Tap = click, keep up = drag\nMiddle finger up = right click", mouse(CLICK_HAND, 20), fonts)
 
     centered(draw, "Scroll: mouse wheel, arrows or W/S. Close: the X or H",
              fonts["sub"], img.width / 2, img.height - 38, GREY)
