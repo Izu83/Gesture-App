@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/banner.png" alt="Gesture-App by Izu83, made with Python" width="100%">
+</p>
+
 # Gesture-App
 
 Control your Windows PC with hand gestures. The app watches your webcam, tracks your hands with
@@ -37,6 +41,32 @@ The camera window is mirrored and shows your hand skeleton. The name of the gest
 
 Two-hand push asks the program to close, so programs with unsaved work will still ask you to save.
 
+### At a glance
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/gestures/open-palm.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/double-open-palm.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/swipe.png" width="220"></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/gestures/search.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/middle-finger.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/help.png" width="220"></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/gestures/fist.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/push.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/pull.png" width="220"></td>
+  </tr>
+</table>
+
+The pictures are the same ones shown in the app's Help window (make the Help sign to open it):
+
+<p align="center">
+  <img src="docs/help.png" alt="The Help window" width="60%">
+</p>
+
 ## Keys
 
 - **Esc** or **q**: quit the app (closing the camera window with the X also quits)
@@ -47,6 +77,7 @@ Two-hand push asks the program to close, so programs with unsaved work will stil
 
 - `src/camera.py`: camera loop, gesture detection and actions
 - `src/help_screen.py`: draws the Help window
+- `tools/make_readme_images.py`: regenerates the images in `docs/` (`python tools/make_readme_images.py`)
 - `src/Limelight-Regular.ttf`: font used for the on-screen text (Google Fonts, SIL Open Font License)
 
 ## Tuning
