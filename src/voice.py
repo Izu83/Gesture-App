@@ -31,7 +31,6 @@ NO_SPEECH_TIMEOUT_S = 8.0  # give up if nothing is said
 END_SILENCE_S = 1.0  # stop after this much silence once you have spoken
 MAX_RECORD_S = 20.0
 PRE_ROLL_S = 0.3
-TYPE_DELAY_S = 0.8  # wait for the search box to be ready before typing
 
 # Whisper sometimes "hears" these in silence.
 HALLUCINATIONS = {"", "you", "thank you", "thanks for watching", "bye", "thank you for watching"}
@@ -97,7 +96,12 @@ def type_text(text):
 # --- the voice typer -------------------------------------------------------------------
 
 class VoiceTyper:
-    def __init__(self):
+    def __init__(self, handler=None, vocabulary=None):
+        """handler(text) does something with what was said and returns a short label.
+        vocabulary() returns names (apps, sites) that help Whisper spell them right."""
+        self._handler = handler or (lambda text: type_text(text) or "Typed")
+        self._vocabulary = vocabulary
+        self._result = ""
         self._model = None
         self._model_error = None
         self._model_ready = threading.Event()
@@ -143,7 +147,7 @@ class VoiceTyper:
         if self._state == "thinking":
             return "Thinking..."
         if time.time() < self._typed_until:
-            return "Typed"
+            return self._result
         return ""
 
     def listen_and_type(self):
@@ -153,7 +157,6 @@ class VoiceTyper:
         threading.Thread(target=self._run, daemon=True).start()
 
     def _run(self):
-        started = time.time()
         try:
             self._state = "listening"
             audio = self.record()
@@ -162,11 +165,8 @@ class VoiceTyper:
             self._state = "thinking"
             text = self.transcribe(audio)
             if text:
-                wait = TYPE_DELAY_S - (time.time() - started)
-                if wait > 0:
-                    time.sleep(wait)
-                type_text(text)
-                self._typed_until = time.time() + 1.0
+                self._result = self._handler(text) or "Done"
+                self._typed_until = time.time() + 1.5
         except Exception as error:
             print(f"Voice typing failed: {error}")
         finally:
@@ -222,9 +222,10 @@ class VoiceTyper:
         self._model_ready.wait()
         if self._model is None:
             return ""
+        hotwords = self._vocabulary() if self._vocabulary else None
         segments, _ = self._model.transcribe(
             audio, language=LANGUAGE, beam_size=5, vad_filter=True,
-            condition_on_previous_text=False, temperature=0.0)
+            condition_on_previous_text=False, temperature=0.0, hotwords=hotwords or None)
         text = " ".join(s.text.strip() for s in segments).strip()
         text = text.rstrip(".!?,;: ")  # a search box does not need the full stop
         return "" if text.lower() in HALLUCINATIONS else text
