@@ -27,7 +27,9 @@ PINKY_ON = 1.35  # pinky tip this far from the wrist, compared with its base = p
 PINKY_OFF = 1.15  # ...and released when it drops below this
 SETTLE_BACK_S = 0.12  # on a press, put the cursor back to where it was this long ago
 CLICK_FREEZE_S = 0.15  # ...and hold it there this long, so raising the pinky cannot drag it
-RIGHT_CLICK_HOLD_S = 0.25  # hold the middle finger up this long for a right click
+MIDDLE_ON = 1.5  # middle tip this far from the wrist, compared with its base = middle up
+MIDDLE_OFF = 1.3  # ...and down again below this
+RIGHT_CLICK_HOLD_S = 0.35  # hold the middle finger up this long for a right click
 DRAG_AFTER_S = 0.4  # a press held this long is shown as "Dragging"
 FLASH_S = 0.6
 
@@ -108,6 +110,7 @@ class AirMouse:
         self._freeze_until = 0.0
         self._trail = deque()  # recent cursor positions: (time, x, y)
         self._middle_since = None
+        self._middle_state = False
         self._right_armed = True
         self._fist_since = None
         self._last_seen = 0.0
@@ -121,6 +124,7 @@ class AirMouse:
         self._pressed = False
         self._trail.clear()
         self._middle_since = self._fist_since = None
+        self._middle_state = False
         self._right_armed = True
         self._flash, self._flash_until = "Mouse mode on", now + FLASH_S
 
@@ -157,8 +161,16 @@ class AirMouse:
             return
         self._fist_since = None
 
+        pinky_reach = _dist(lm[PINKY_TIP], lm[WRIST]) / max(_dist(lm[PINKY_MCP], lm[WRIST]), 1e-6)
+        middle_reach = _dist(lm[12], lm[WRIST]) / max(_dist(lm[9], lm[WRIST]), 1e-6)
+        if middle_reach > MIDDLE_ON:
+            self._middle_state = True
+        elif middle_reach < MIDDLE_OFF:
+            self._middle_state = False
+        # Raising the pinky must never count as a right click, whatever the other fingers do.
+        middle_up = self._middle_state and pinky_reach < PINKY_OFF and not self._pressed
+
         # Middle finger up = right click, and the cursor stays put while you do it.
-        middle_up = _extended(lm, 12, 10)
         if middle_up:
             self._middle_since = self._middle_since or now
             if self._right_armed and now - self._middle_since >= RIGHT_CLICK_HOLD_S:
@@ -180,7 +192,7 @@ class AirMouse:
                     self._trail.popleft()
 
         # Pinky up = press. A quick tap is a click; keeping it up while you move is a drag.
-        reach = _dist(lm[PINKY_TIP], lm[WRIST]) / max(_dist(lm[PINKY_MCP], lm[WRIST]), 1e-6)
+        reach = pinky_reach
         if not self._pressed and reach > PINKY_ON and not middle_up:
             # Raising the pinky nudges the hand, so go back to where the cursor was a
             # moment ago and keep it there briefly before pressing.
