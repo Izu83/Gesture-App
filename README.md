@@ -27,7 +27,8 @@ The Search gesture listens to your microphone. Say something, pause, and the app
 | You say | What happens |
 |---|---|
 | "YouTube", "open Reddit", "go to GitHub", "youtube.com" | Opens the site in **Opera** |
-| "search YouTube for lo-fi music", "search cats on YouTube" | Searches that site in Opera |
+| "play lo-fi music on YouTube", "watch cat videos", "YT daft punk" | Finds the top YouTube result and opens that **video** in Opera |
+| "search YouTube for lo-fi music", "search cats on YouTube" | Opens the search results (not a video) in Opera |
 | "google weather in London" | Google search in Opera |
 | "open Spotify", "launch Discord", "open calculator" | Starts that installed app |
 | anything else, like "weather in London" | Opens Windows Search and types it for you. Make the Enter sign to run it |

@@ -2,6 +2,7 @@
 
 - "open Spotify", "launch Discord": starts an installed app
 - "youtube", "open reddit", "youtube.com": opens the site in Opera
+- "play lo-fi music on youtube", "watch cat videos": opens the top YouTube video in Opera
 - "search youtube for lo-fi music", "google weather in London": searches a site in Opera
 - anything else: typed into Windows Search (the caller's fallback)
 """
@@ -12,9 +13,10 @@ import re
 import subprocess
 import threading
 import urllib.parse
+import urllib.request
 from collections import namedtuple
 
-Action = namedtuple("Action", "kind value label")  # kind: "url" | "app" | "type"
+Action = namedtuple("Action", "kind value label")  # kind: "url" | "app" | "video"
 
 _LOCAL = os.environ.get("LOCALAPPDATA", "")
 OPERA_PATHS = [
@@ -62,6 +64,10 @@ OPEN_RE = re.compile(r"^(?:please\s+)?(?:open|launch|start|run|go to|goto|take m
 IN_OPERA_RE = re.compile(r"\s+(?:in|on|with|using)\s+opera(?:\s+browser)?$")
 SEARCH_ON_RE = re.compile(r"^(?:search|find|look up|look for)\s+(?:for\s+)?(.+?)\s+(?:on|in)\s+(.+)$")
 SEARCH_SITE_FOR_RE = re.compile(r"^(?:search|find|look up)\s+(.+?)\s+for\s+(.+)$")
+PLAY_ON_RE = re.compile(r"^(?:play|watch|open|put on)\s+(.+?)\s+(?:on|in|from)\s+(?:youtube|you tube|yt)$")
+YT_PLAY_RE = re.compile(r"^(?:youtube|you tube|yt)\s+(?:play|watch)\s+(.+)$")
+PLAY_RE = re.compile(r"^(?:play|watch)\s+(?:the\s+)?(.+)$")
+YT_QUERY_RE = re.compile(r"^youtube\s+(.+)$")  # "yt cat videos"
 GOOGLE_RE = re.compile(r"^google\s+(?:for\s+)?(.+)$")
 DOMAIN_RE = re.compile(r"[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|gov|edu|co|tv|bg|uk|de|fr|me|app|dev|ai)(?:/\S*)?")
 
@@ -159,8 +165,15 @@ def _search_url(site, query):
 def plan(text):
     """Decide what to do with the spoken text. None means "type it into Windows Search"."""
     said = IN_OPERA_RE.sub("", normalize(text))
+    said = re.sub(r"\b(?:yt|you tube)\b", "youtube", said)  # "yt" and "you tube" mean YouTube
     if not said:
         return None
+
+    for regex in (PLAY_ON_RE, YT_PLAY_RE, PLAY_RE, YT_QUERY_RE):  # "play X on youtube", "watch X"
+        m = regex.match(said)
+        if m:
+            query = re.sub(r"\s+(?:on|in|from)\s+youtube$", "", m.group(1)).strip()
+            return Action("video", query, "Playing on YouTube")
 
     m = GOOGLE_RE.match(said)
     if m:
@@ -189,11 +202,33 @@ def plan(text):
     return None
 
 
+def youtube_first_video(query):
+    """URL of the top YouTube result for the query, or None if it cannot be found."""
+    url = "https://www.youtube.com/results?search_query=" + urllib.parse.quote_plus(query)
+    request = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cookie": "CONSENT=YES+1; SOCS=CAI",  # skip the cookie-consent page
+    })
+    try:
+        with urllib.request.urlopen(request, timeout=8) as page:
+            html = page.read().decode("utf-8", "replace")
+    except Exception as error:
+        print(f"Could not look up the video: {error}")
+        return None
+    m = re.search(r'"videoRenderer":\{"videoId":"([\w-]{11})"', html)
+    return "https://www.youtube.com/watch?v=" + m.group(1) if m else None
+
+
 def opera_path():
     return next((p for p in OPERA_PATHS if os.path.exists(p)), None)
 
 
 def execute(action):
+    if action.kind == "video":  # top result, or the search page if it cannot be found
+        video = youtube_first_video(action.value)
+        action = Action("url", video or _search_url("youtube", action.value), action.label)
     if action.kind == "url":
         opera = opera_path()
         if opera:

@@ -190,7 +190,7 @@ def build_help_image():
          "Left to right: next app\nRight to left: previous app\nIn Task View: moves the pick",
          swipe, fonts)
     tile(draw, 0, 1, "Search", "Thumb and index touch\nin a circle",
-         "Listens: say \"open Spotify\"\nor \"YouTube\". Other words\nare typed into Windows Search", single(SEARCH_HAND), fonts)
+         "Listens: say \"open Spotify\" or\n\"play lo-fi on YouTube\". Other\nwords are typed into Search", single(SEARCH_HAND), fonts)
     tile(draw, 1, 1, "Middle Finger", "Only the middle finger up",
          "Shows a rude reply\non screen", single(MIDDLE_HAND), fonts)
     tile(draw, 2, 1, "Help", "Thumb, index and pinky up\non both hands",
