@@ -74,6 +74,8 @@ HELP_HAND = hand("out", "up", "curl", "curl", "up")
 FIST_HAND = hand("in", "curl", "curl", "curl", "curl")
 TWO_FINGER_HAND = hand("in", "up", "up", "curl", "curl")
 L_HAND = hand("out", "up", "curl", "curl", "curl")
+PINKY_HAND = hand("in", "curl", "curl", "curl", "up")
+RING_HAND = hand("in", "curl", "curl", "up", "up")
 
 
 def draw_skeleton(draw, pts, cx, cy, scale=1.0, mirror=False):
@@ -146,7 +148,7 @@ def tile(draw, col, row, title, how, does, art, fonts):
 def build_help_image():
     fonts = {"title": load(TITLE_FONT, 52), "name": load(TITLE_FONT, 26),
              "sub": load(TEXT_FONT, 17)}
-    rows = 4
+    rows = 5
     img = Image.new("RGB", (TILE_W * COLS, TITLE_H + TILE_H * rows + FOOTER_H), BG)
     draw = ImageDraw.Draw(img)
     centered(draw, "Gesture Help", fonts["title"], img.width / 2, 20, ORANGE)
@@ -204,6 +206,12 @@ def build_help_image():
          "Slowly scrolls the window\nin front up while held", scroll(L_HAND, True), fonts)
     tile(draw, 1, 3, "Scroll Down", "Index and middle finger up,\nring and pinky curled",
          "Slowly scrolls the window\nin front down while held", scroll(TWO_FINGER_HAND, False), fonts)
+
+    tile(draw, 2, 3, "Escape", "Only the pinky up",
+         "Presses the Esc key", single(PINKY_HAND), fonts)
+
+    tile(draw, 1, 4, "Enter", "Ring and pinky up,\nindex and middle curled",
+         "Presses the Enter key", single(RING_HAND), fonts)
 
     centered(draw, "Scroll: mouse wheel, arrows or W/S. Close: the X or H",
              fonts["sub"], img.width / 2, img.height - 38, GREY)

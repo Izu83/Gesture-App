@@ -40,6 +40,8 @@ The camera window is mirrored and shows your hand skeleton. The name of the gest
 | Pull | Open hand back away from the camera | In Task View: opens the selected window (Enter) |
 | Scroll Up | Thumb and index out in an "L", other fingers curled | Slowly scrolls the window in front up while you hold it |
 | Scroll Down | Index and middle finger up, ring and pinky curled | Slowly scrolls the window in front down while you hold it |
+| Escape | Only the pinky up, other fingers curled | Presses the Esc key (skipped while the Camera window is in front, since Esc would quit the app) |
+| Enter | Ring and pinky up, index and middle curled | Presses the Enter key |
 
 Two-hand push asks the program to close, so programs with unsaved work will still ask you to save.
 
@@ -64,6 +66,11 @@ Two-hand push asks the program to close, so programs with unsaved work will stil
   <tr>
     <td align="center"><img src="docs/gestures/scroll-up.png" width="220"></td>
     <td align="center"><img src="docs/gestures/scroll-down.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/escape.png" width="220"></td>
+  </tr>
+  <tr>
+    <td></td>
+    <td align="center"><img src="docs/gestures/enter.png" width="220"></td>
     <td></td>
   </tr>
 </table>

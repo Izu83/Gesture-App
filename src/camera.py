@@ -43,6 +43,8 @@ STABLE_S = 0.3  # hands must be tracked steadily this long before swipes or push
 SCROLL_RATE = 240  # wheel units per second while a scroll sign is held (120 = one notch)
 SCROLL_HOLD_S = 0.3  # the sign must be held this long before it starts scrolling
 SCROLL_SHOW_S = 0.3
+ESCAPE_HOLD_S = 0.3  # how long the pinky sign must be held to press Esc
+ENTER_HOLD_S = 0.3  # how long the ring + pinky sign must be held to press Enter
 PUSH_SHOW_S = 1.0
 FIST_HOLD_S = 0.5  # how long the fist must be held to trigger
 SEARCH_HOLD_S = 0.3  # how long the Search sign must be held to trigger
@@ -184,6 +186,31 @@ def is_l_sign(lm):
         and dist(lm[16], lm[WRIST]) < dist(lm[13], lm[WRIST])
         and dist(lm[20], lm[WRIST]) < dist(lm[17], lm[WRIST])
     )
+
+
+def is_pinky_only(lm):
+    # Only the pinky up; index, middle and ring curled; the thumb is ignored.
+    return (
+        dist(lm[20], lm[WRIST]) > dist(lm[18], lm[WRIST])
+        and dist(lm[8], lm[WRIST]) < dist(lm[5], lm[WRIST])
+        and dist(lm[12], lm[WRIST]) < dist(lm[9], lm[WRIST])
+        and dist(lm[16], lm[WRIST]) < dist(lm[13], lm[WRIST])
+    )
+
+
+def is_ring_pinky(lm):
+    # Ring and pinky up; index and middle curled; the thumb is ignored.
+    return (
+        dist(lm[16], lm[WRIST]) > dist(lm[14], lm[WRIST])
+        and dist(lm[20], lm[WRIST]) > dist(lm[18], lm[WRIST])
+        and dist(lm[8], lm[WRIST]) < dist(lm[5], lm[WRIST])
+        and dist(lm[12], lm[WRIST]) < dist(lm[9], lm[WRIST])
+    )
+
+
+def camera_window_in_front():
+    hwnd = ctypes.windll.user32.FindWindowW(None, "Camera")
+    return bool(hwnd) and hwnd == ctypes.windll.user32.GetForegroundWindow()
 
 
 def is_fist(lm):
@@ -384,6 +411,12 @@ def main():
     swipe_until = 0.0
     push_history = deque()
     prev_n_hands = 0
+    escape_armed = True
+    escape_since = None
+    escape_until = 0.0
+    enter_armed = True
+    enter_since = None
+    enter_until = 0.0
     scroll_active = None
     scroll_since = 0.0
     last_scroll_t = 0.0
@@ -469,6 +502,31 @@ def main():
         else:
             scroll_active = None
             scroll_accum = 0.0
+
+        # Only the pinky up (held briefly) presses Esc, once per sign. It is skipped
+        # while the Camera window is in front, because Esc would quit this app.
+        if n_hands == 1 and stable and is_pinky_only(result.hand_landmarks[0]):
+            escape_since = escape_since or now
+            if escape_armed and now - escape_since >= ESCAPE_HOLD_S:
+                if not camera_window_in_front():
+                    press_key(0x1B)  # VK_ESCAPE
+                escape_armed = False
+                escape_until = now + PUSH_SHOW_S
+        else:
+            escape_since = None
+            escape_armed = True
+
+        # Ring and pinky up (held briefly) presses Enter, once per sign.
+        if n_hands == 1 and stable and is_ring_pinky(result.hand_landmarks[0]):
+            enter_since = enter_since or now
+            if enter_armed and now - enter_since >= ENTER_HOLD_S:
+                press_key(0x0D)  # VK_RETURN
+                enter_armed = False
+                enter_until = now + PUSH_SHOW_S
+        else:
+            enter_since = None
+            enter_armed = True
+
         # Swipes use a single, steadily tracked hand.
         if n_hands == 1 and stable and scroll_dir is None:
             lm = result.hand_landmarks[0]
@@ -552,6 +610,10 @@ def main():
         gesture = ""
         if middle_finger:
             gesture = "Fuck you too"
+        elif now < enter_until:
+            gesture = "Enter"
+        elif now < escape_until:
+            gesture = "Escape"
         elif now < scroll_until:
             gesture = scroll_text
         elif now < fist_until:
