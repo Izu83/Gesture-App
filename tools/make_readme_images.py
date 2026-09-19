@@ -10,6 +10,12 @@ import help_screen as hs  # noqa: E402
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 DOCS = os.path.join(ROOT, "docs")
 GESTURES = os.path.join(DOCS, "gestures")
+HEADINGS = os.path.join(DOCS, "headings")
+HEADING_TITLES = [  # README section titles, drawn in the app font because GitHub cannot change fonts
+    "What it does", "Contents", "Quick start", "Gestures", "Voice commands", "Keys",
+    "Tips for best results", "Troubleshooting", "How it works", "Project structure",
+    "Tuning", "Credits",
+]
 
 TILES = [  # (col, row, file name) in the order build_help_image lays them out
     (0, 0, "open-palm"), (1, 0, "double-open-palm"), (2, 0, "swipe"),
@@ -26,6 +32,16 @@ def save_help_images():
         x0, y0 = col * hs.TILE_W + 10, hs.TITLE_H + row * hs.TILE_H + 10
         full.crop((x0, y0, x0 + hs.TILE_W - 20, y0 + hs.TILE_H - 20)).save(
             os.path.join(GESTURES, name + ".png"))
+
+
+def save_headings():
+    font = hs.load(hs.TITLE_FONT, 96, 800)
+    ref = font.getbbox("Hgjpq")  # same height for every heading, so they scale alike
+    for title in HEADING_TITLES:
+        box = font.getbbox(title)
+        img = Image.new("RGBA", (box[2] - box[0] + 8, ref[3] - ref[1] + 8), (0, 0, 0, 0))
+        ImageDraw.Draw(img).text((4 - box[0], 4 - ref[1]), title, font=font, fill=hs.ACCENT)
+        img.save(os.path.join(HEADINGS, title.lower().replace(" ", "-") + ".png"))
 
 
 def badge(img, x, y, text, font, icon, circle=False):
@@ -72,6 +88,8 @@ def save_banner():
 
 if __name__ == "__main__":
     os.makedirs(GESTURES, exist_ok=True)
+    os.makedirs(HEADINGS, exist_ok=True)
+    save_headings()
     save_help_images()
     save_banner()
-    print("wrote docs/banner.png, docs/help.png and docs/gestures/*.png")
+    print("wrote the banner, help picture, gesture pictures and README headings in docs/")

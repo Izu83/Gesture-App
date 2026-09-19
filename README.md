@@ -9,7 +9,7 @@
 
 ---
 
-## What it does
+## <a name="what-it-does"></a><img src="docs/headings/what-it-does.png" alt="What it does" height="38">
 
 - **Tracks your hands** with your webcam and recognizes 13 gestures, from swipes and pushes to single-finger signs.
 - **Controls Windows**: switch apps, open Task View, minimize or close the window in front, scroll, press Esc or Enter.
@@ -17,11 +17,11 @@
 - **Runs offline**: hand tracking and speech recognition both run on your PC. Nothing you say or show is uploaded.
 - **Explains itself**: make the Help sign with both hands to open a window with every gesture, a picture and a description.
 
-## Contents
+## <a name="contents"></a><img src="docs/headings/contents.png" alt="Contents" height="38">
 
 [Quick start](#quick-start) · [Gestures](#gestures) · [Voice commands](#voice-commands) · [Keys](#keys) · [Tips](#tips-for-best-results) · [Troubleshooting](#troubleshooting) · [How it works](#how-it-works) · [Project structure](#project-structure) · [Tuning](#tuning)
 
-## Quick start
+## <a name="quick-start"></a><img src="docs/headings/quick-start.png" alt="Quick start" height="38">
 
 **You need:** Windows 10/11, Python 3, a webcam and a microphone. An NVIDIA GPU makes voice recognition fast (see [voice commands](#voice-commands)).
 
@@ -39,7 +39,7 @@ On the first run the app downloads two models:
 
 Your camera window opens mirrored, with your hand drawn as a skeleton and the name of the current gesture at the bottom. Try the **Help** sign (thumb, index and pinky up on both hands) to see everything the app can do.
 
-## Gestures
+## <a name="gestures"></a><img src="docs/headings/gestures.png" alt="Gestures" height="38">
 
 Hold the sign steady for a moment. The app waits about a third of a second after a hand appears before it acts, so raising your hands doesn't trigger anything by accident.
 
@@ -97,7 +97,7 @@ The Help window (make the Help sign to open it) looks like this:
   <img src="docs/help.png" alt="The Help window" width="60%">
 </p>
 
-## Voice commands
+## <a name="voice-commands"></a><img src="docs/headings/voice-commands.png" alt="Voice commands" height="38">
 
 Make the **Search** sign, say something, then pause. The camera window shows "Listening...", then "Thinking...", then what the app did.
 
@@ -116,7 +116,7 @@ Make the **Search** sign, say something, then pause. The camera window shows "Li
 - **Privacy:** your voice never leaves your PC. The one online request is finding the top video for "play ... on YouTube", and it only sends the search words.
 - **Bare "play" or "watch"** is treated as a YouTube video.
 
-## Keys
+## <a name="keys"></a><img src="docs/headings/keys.png" alt="Keys" height="38">
 
 | Key | Action |
 |---|---|
@@ -124,7 +124,7 @@ Make the **Search** sign, say something, then pause. The camera window shows "Li
 | **h** | Close the Help window |
 | Mouse wheel, arrow keys, **W** / **S** | Scroll the Help window |
 
-## Tips for best results
+## <a name="tips-for-best-results"></a><img src="docs/headings/tips-for-best-results.png" alt="Tips for best results" height="38">
 
 - Use **good, even lighting** and keep your hand in front of a plain background if you can.
 - Keep your hand **about an arm's length** from the camera so all your fingers are visible.
@@ -132,7 +132,7 @@ Make the **Search** sign, say something, then pause. The camera window shows "Li
 - For **Push and Pull**, move your open hand straight toward or away from the camera without moving it sideways or up and down.
 - For **voice commands**, speak clearly, then pause for a second. Background noise can make it wait longer.
 
-## Troubleshooting
+## <a name="troubleshooting"></a><img src="docs/headings/troubleshooting.png" alt="Troubleshooting" height="38">
 
 | Problem | Fix |
 |---|---|
@@ -142,14 +142,14 @@ Make the **Search** sign, say something, then pause. The camera window shows "Li
 | Voice is slow | Without an NVIDIA GPU the speech model runs on the CPU. That works but takes much longer |
 | A gesture triggers by accident or doesn't trigger | See [Tuning](#tuning) |
 
-## How it works
+## <a name="how-it-works"></a><img src="docs/headings/how-it-works.png" alt="How it works" height="38">
 
 1. **Hand tracking:** OpenCV reads the camera and [MediaPipe](https://developers.google.com/mediapipe) finds 21 landmarks on each hand.
 2. **Gesture rules:** simple geometry on those landmarks (which fingers are extended, how far apart they are, how the hand moves over time) decides which gesture you're making. There is no custom-trained model.
 3. **Actions:** the app presses Windows shortcuts, scrolls the mouse wheel and controls windows through the Win32 API.
 4. **Voice:** the Search sign records from your microphone, [faster-whisper](https://github.com/SYSTRAN/faster-whisper) turns it into text, and `commands.py` decides whether to open an app, open a site or type the words.
 
-## Project structure
+## <a name="project-structure"></a><img src="docs/headings/project-structure.png" alt="Project structure" height="38">
 
 ```
 Gesture-App/
@@ -166,7 +166,7 @@ Gesture-App/
 
 To regenerate the pictures after changing the Help window, run `python tools/make_readme_images.py`.
 
-## Tuning
+## <a name="tuning"></a><img src="docs/headings/tuning.png" alt="Tuning" height="38">
 
 Sensitivity is set by constants near the top of `src/camera.py`:
 
@@ -178,7 +178,7 @@ Sensitivity is set by constants near the top of `src/camera.py`:
 | `FIST_HOLD_S`, `ESCAPE_HOLD_S`, `ENTER_HOLD_S` | how long a sign is held before it fires |
 | `SCROLL_RATE` | scroll speed while a scroll sign is held |
 
-## Credits
+## <a name="credits"></a><img src="docs/headings/credits.png" alt="Credits" height="38">
 
 Built with [OpenCV](https://opencv.org), [MediaPipe](https://developers.google.com/mediapipe), [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (OpenAI Whisper), [Pillow](https://python-pillow.org) and the [Baloo 2](https://fonts.google.com/specimen/Baloo+2) font.
 
