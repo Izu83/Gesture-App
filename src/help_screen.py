@@ -78,6 +78,9 @@ TWO_FINGER_HAND = hand("in", "up", "up", "curl", "curl")
 L_HAND = hand("out", "up", "curl", "curl", "curl")
 PINKY_HAND = hand("in", "curl", "curl", "curl", "up")
 RING_HAND = hand("in", "curl", "curl", "up", "up")
+POINT_HAND = hand("in", "up", "curl", "curl", "curl")
+THREE_HAND = hand("in", "up", "up", "up", "curl")
+CLICK_HAND = hand("in", "up", "curl", "curl", "up")  # pointing, with the pinky raised
 
 
 def draw_skeleton(draw, pts, cx, cy, scale=1.0, mirror=False):
@@ -108,6 +111,12 @@ def draw_growth_arrows(draw, cx, cy, outward):
         px, py = -uy, ux
         draw.polygon([b, (b[0] - 16 * ux + 9 * px, b[1] - 16 * uy + 9 * py),
                       (b[0] - 16 * ux - 9 * px, b[1] - 16 * uy - 9 * py)], fill=ACCENT)
+
+
+def draw_cursor(draw, x, y):
+    """A mouse pointer, tip at (x, y)."""
+    shape = [(0, 0), (0, 30), (8, 23), (14, 35), (20, 32), (14, 21), (24, 21)]
+    draw.polygon([(x + a, y + b) for a, b in shape], fill=ACCENT, outline=LINE)
 
 
 def draw_arrow_v(draw, y_from, y_to, x):
@@ -156,7 +165,7 @@ def tile(draw, col, row, title, how, does, art, fonts):
 def build_help_image():
     fonts = {"title": load(TITLE_FONT, 60, 800), "name": load(TITLE_FONT, 30, 700),
              "sub": load(TEXT_FONT, 18, 500)}
-    rows = 5
+    rows = 6
     img = Image.new("RGB", (TILE_W * COLS, TITLE_H + TILE_H * rows + FOOTER_H), BG)
     draw = ImageDraw.Draw(img)
     centered(draw, "Gesture Help", fonts["title"], img.width / 2, 20, ACCENT)
@@ -182,6 +191,16 @@ def build_help_image():
                 draw_arrow_v(d, y + 250, y + 80, x + 105)
             else:
                 draw_arrow_v(d, y + 80, y + 250, x + 105)
+        return art
+
+    def mouse(pts, ring=None):
+        def art(d, x, y):
+            draw_skeleton(d, pts, x - 20, y + 190)
+            tip_x, tip_y = x - 20 + (pts[8][0] - 150), y + 190 + (pts[8][1] - 170)
+            draw_cursor(d, tip_x + 30, tip_y - 45)
+            if ring is not None:  # a ring around the landmark that does the clicking
+                rx, ry = x - 20 + (pts[ring][0] - 150), y + 190 + (pts[ring][1] - 170)
+                d.ellipse([rx - 20, ry - 20, rx + 20, ry + 20], outline=ACCENT, width=4)
         return art
 
     def growth(outward):
@@ -218,8 +237,14 @@ def build_help_image():
     tile(draw, 2, 3, "Escape", "Only the pinky up",
          "Presses the Esc key", single(PINKY_HAND), fonts)
 
-    tile(draw, 1, 4, "Enter", "Ring and pinky up,\nindex and middle curled",
+    tile(draw, 0, 4, "Enter", "Ring and pinky up,\nindex and middle curled",
          "Presses the Enter key", single(RING_HAND), fonts)
+    tile(draw, 1, 4, "Mouse Mode", "Point with your index finger\nand hold",
+         "Your fingertip moves the cursor.\nA fist held stops it", mouse(POINT_HAND), fonts)
+    tile(draw, 1, 5, "Dictate", "Index, middle and ring\nfingers up (pinky curled)",
+         "Listens, then types what you\nsay into the window in front", single(THREE_HAND), fonts)
+    tile(draw, 2, 4, "Mouse Click", "In mouse mode:\nraise your pinky",
+         "Tap = click, keep up = drag\nMiddle finger up = right click", mouse(CLICK_HAND, 20), fonts)
 
     centered(draw, "Scroll: mouse wheel, arrows or W/S. Close: the X or H",
              fonts["sub"], img.width / 2, img.height - 38, GREY)

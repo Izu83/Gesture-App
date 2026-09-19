@@ -3,6 +3,7 @@ import os
 import time
 import urllib.request
 from collections import deque
+from types import SimpleNamespace
 
 import cv2
 import mediapipe as mp
@@ -11,7 +12,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 from help_screen import build_help_image
 import commands
+import mouse
 import commands
+import mouse
 from voice import VoiceTyper, type_text, type_text
 from mediapipe.tasks.python import BaseOptions, vision
 
@@ -47,6 +50,7 @@ SCROLL_RATE = 240  # wheel units per second while a scroll sign is held (120 = o
 SCROLL_HOLD_S = 0.3  # the sign must be held this long before it starts scrolling
 SCROLL_SHOW_S = 0.3
 ESCAPE_HOLD_S = 0.3  # how long the pinky sign must be held to press Esc
+DICTATE_HOLD_S = 0.5  # how long the three-finger sign must be held to start dictating
 ENTER_HOLD_S = 0.3  # how long the ring + pinky sign must be held to press Enter
 PUSH_SHOW_S = 1.0
 FIST_HOLD_S = 0.5  # how long the fist must be held to trigger
@@ -211,6 +215,16 @@ def is_ring_pinky(lm):
     )
 
 
+def is_three_fingers(lm):
+    # Index, middle and ring fingers up, pinky curled; the thumb is ignored.
+    return (
+        dist(lm[8], lm[WRIST]) > dist(lm[6], lm[WRIST])
+        and dist(lm[12], lm[WRIST]) > dist(lm[10], lm[WRIST])
+        and dist(lm[16], lm[WRIST]) > dist(lm[14], lm[WRIST])
+        and dist(lm[20], lm[WRIST]) < dist(lm[17], lm[WRIST])
+    )
+
+
 def camera_window_in_front():
     hwnd = ctypes.windll.user32.FindWindowW(None, "Camera")
     return bool(hwnd) and hwnd == ctypes.windll.user32.GetForegroundWindow()
@@ -331,15 +345,18 @@ def load_font(size):
 
 
 def draw_text_bottom(frame, text, font):
-    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    # Only the strip along the bottom is converted, which is much faster than the whole frame.
+    h, w = frame.shape[:2]
+    strip_h = min(h, 200)
+    img = Image.fromarray(cv2.cvtColor(frame[h - strip_h:], cv2.COLOR_BGR2RGB))
     draw = ImageDraw.Draw(img)
-    w, h = img.size
     box = draw.textbbox((0, 0), text, font=font)
     x = (w - (box[2] - box[0])) // 2 - box[0]
-    y = h - (box[3] - box[1]) - 30 - box[1]
+    y = strip_h - (box[3] - box[1]) - 30 - box[1]
     draw.text((x, y), text, font=font, fill=TEXT_COLOR,
               stroke_width=2, stroke_fill=(0, 15, 8))
-    return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    frame[h - strip_h:] = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    return frame
 
 
 def is_hand_open(lm):
@@ -397,13 +414,19 @@ def draw_hand(frame, lm):
 def main():
     global help_scroll
     ensure_model()
-    landmarker = vision.HandLandmarker.create_from_options(
-        vision.HandLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path=MODEL_PATH),
-            running_mode=vision.RunningMode.VIDEO,
-            num_hands=2,
+    def make_landmarker(max_hands):
+        return vision.HandLandmarker.create_from_options(
+            vision.HandLandmarkerOptions(
+                base_options=BaseOptions(model_asset_path=MODEL_PATH),
+                running_mode=vision.RunningMode.VIDEO,
+                num_hands=max_hands,
+            )
         )
-    )
+
+    landmarker = make_landmarker(2)
+    # In mouse mode only one hand is needed, and looking for a second hand every frame
+    # is slow, so a one-hand tracker takes over. A higher frame rate means a smoother cursor.
+    landmarker_solo = make_landmarker(1)
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -454,6 +477,17 @@ def main():
         return commands.route(text, type_into_search)
 
     commands.preload_apps()  # lists installed apps in the background
+    def dictate(text):
+        # Type what you said into whichever window has the keyboard focus.
+        if camera_window_in_front():
+            return "Click a text box first"
+        type_text(text + " ")
+        return "Typed"
+
+    dictate_armed = True
+    dictate_since = None
+    air = mouse.AirMouse()
+    point_since = None
     voice = VoiceTyper(handler=handle_voice, vocabulary=commands.vocabulary)
     voice.preload()  # loads the speech model in the background
     timestamp_ms = 0
@@ -466,7 +500,26 @@ def main():
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         timestamp_ms += 33
-        result = landmarker.detect_for_video(image, timestamp_ms)
+        result = (landmarker_solo if air.active else landmarker).detect_for_video(
+            image, timestamp_ms)
+
+        # Air mouse: point (index only) and hold to start, fist and hold to stop. While it
+        # is on, the other gestures see no hands, so nothing else can fire by accident.
+        mouse_now = time.time()
+        if air.active:
+            for lm in result.hand_landmarks:
+                draw_hand(frame, lm)
+            air.update(result.hand_landmarks, mouse_now)
+            air.draw(frame, result.hand_landmarks)
+            result = SimpleNamespace(hand_landmarks=[], handedness=[])
+            point_since = None
+        elif len(result.hand_landmarks) == 1 and mouse.is_pointing(result.hand_landmarks[0]):
+            point_since = point_since or mouse_now
+            if mouse_now - point_since >= mouse.POINT_HOLD_S:
+                air.start(mouse_now)
+                point_since = None
+        else:
+            point_since = None
 
         open_palms = 0
         middle_finger = False
@@ -536,6 +589,17 @@ def main():
         else:
             escape_since = None
             escape_armed = True
+
+        # Three fingers up (held briefly): listen, then type what you say into the window
+        # that has the keyboard focus. Once per sign.
+        if n_hands == 1 and stable and is_three_fingers(result.hand_landmarks[0]):
+            dictate_since = dictate_since or now
+            if dictate_armed and now - dictate_since >= DICTATE_HOLD_S:
+                voice.listen_and_type(handler=dictate, dictation=True)
+                dictate_armed = False
+        else:
+            dictate_since = None
+            dictate_armed = True
 
         # Ring and pinky up (held briefly) presses Enter, once per sign.
         if n_hands == 1 and stable and is_ring_pinky(result.hand_landmarks[0]):
@@ -654,6 +718,8 @@ def main():
         elif open_palms == 1:
             gesture = "Open Palm"
 
+        if air.label:  # mouse mode messages come first
+            gesture = air.label
         if gesture:
             frame = draw_text_bottom(frame, gesture, font)
 
@@ -679,6 +745,7 @@ def main():
 
     voice.close()
     landmarker.close()
+    landmarker_solo.close()
     cap.release()
     cv2.destroyAllWindows()
 
