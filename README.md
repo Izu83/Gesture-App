@@ -13,6 +13,8 @@
 
 - **Tracks your hands** with your webcam and recognizes 16 gestures, from swipes and pushes to single-finger signs.
 - **Controls Windows**: switch apps, open Task View, minimize or close the window in front, scroll, press Esc or Enter.
+- **Air mouse**: point to move the cursor with your fingertip, raise your pinky to click and drag, raise your middle finger to right-click.
+- **Dictation**: make the three-finger sign and talk, and your words are typed into whatever text box is in front.
 - **Understands your voice**: make the Search sign and say *"open Spotify"*, *"play lo-fi music on YouTube"* or *"google weather in London"*.
 - **Runs offline**: hand tracking and speech recognition both run on your PC. Nothing you say or show is uploaded.
 - **Explains itself**: make the Help sign with both hands to open a window with every gesture, a picture and a description.
@@ -152,6 +154,8 @@ While mouse mode is on, all the other gestures are switched off, so a swipe or p
 - **Hold each sign steady** for about half a second. Signs like Escape, Enter, Fist and the scroll signs need a short hold.
 - For **Push and Pull**, move your open hand straight toward or away from the camera without moving it sideways or up and down.
 - For **voice commands**, speak clearly, then pause for a second. Background noise can make it wait longer.
+- For the **air mouse**, keep your hand steady at a comfortable height, point straight at the camera, and use the white rectangle in the camera window as your "trackpad". Lower your pinky to let go of a click or drag.
+- For **dictation**, click into the text box first. The camera window itself can't receive typing.
 
 ## <a name="troubleshooting"></a><img src="docs/headings/troubleshooting.png" alt="Troubleshooting" height="38">
 
@@ -161,13 +165,14 @@ While mouse mode is on, all the other gestures are switched off, so a swipe or p
 | Voice commands hear nothing | Check that your microphone isn't muted (Settings > System > Sound > Input, or your laptop's mic mute key) and that Windows allows apps to use it (Settings > Privacy & security > Microphone) |
 | "Could not open camera" | Close other apps using the camera, or check that the camera isn't switched off |
 | Voice is slow | Without an NVIDIA GPU the speech model runs on the CPU. That works but takes much longer |
+| The air mouse is jumpy or laggy | Try the smoothing settings in [Tuning](#tuning). Good lighting also helps a lot, because the camera gives the app fewer frames in the dark |
 | A gesture triggers by accident or doesn't trigger | See [Tuning](#tuning) |
 
 ## <a name="how-it-works"></a><img src="docs/headings/how-it-works.png" alt="How it works" height="38">
 
 1. **Hand tracking:** OpenCV reads the camera and [MediaPipe](https://developers.google.com/mediapipe) finds 21 landmarks on each hand.
 2. **Gesture rules:** simple geometry on those landmarks (which fingers are extended, how far apart they are, how the hand moves over time) decides which gesture you're making. There is no custom-trained model.
-3. **Actions:** the app presses Windows shortcuts, scrolls the mouse wheel and controls windows through the Win32 API.
+3. **Actions:** the app presses Windows shortcuts, scrolls the mouse wheel, moves the cursor and controls windows through the Win32 API.
 4. **Voice:** the Search sign records from your microphone, [faster-whisper](https://github.com/SYSTRAN/faster-whisper) turns it into text, and `commands.py` decides whether to open an app, open a site or type the words.
 
 ## <a name="project-structure"></a><img src="docs/headings/project-structure.png" alt="Project structure" height="38">
