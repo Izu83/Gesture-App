@@ -44,23 +44,14 @@ def save_headings():
         img.save(os.path.join(HEADINGS, title.lower().replace(" ", "-") + ".png"))
 
 
-def badge(img, x, y, text, font, icon, circle=False):
-    """A rounded badge with a small icon (a profile picture or logo) and a text."""
-    draw = ImageDraw.Draw(img)
-    box = draw.textbbox((0, 0), text, font=font)
-    h, pad, icon_size = 62, 8, 46
-    w = pad + icon_size + 14 + (box[2] - box[0]) + 28
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=h // 2, fill=hs.TILE_BG,
-                           outline=hs.ACCENT, width=3)
-    icon = icon.convert("RGBA").resize((icon_size, icon_size), Image.LANCZOS)
+def round_icon(path, size, circle=False):
+    icon = Image.open(path).convert("RGBA").resize((size, size), Image.LANCZOS)
     if circle:
-        mask = Image.new("L", (icon_size * 4, icon_size * 4), 0)
-        ImageDraw.Draw(mask).ellipse([0, 0, icon_size * 4 - 1, icon_size * 4 - 1], fill=255)
-        icon.putalpha(mask.resize((icon_size, icon_size), Image.LANCZOS))
-    img.paste(icon, (x + pad, y + (h - icon_size) // 2), icon)
-    draw.text((x + pad + icon_size + 14 - box[0], y + h // 2), text, font=font,
-              fill=hs.WHITE, anchor="lm")
-    return w
+        mask = Image.new("L", (size * 4, size * 4), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, size * 4 - 1, size * 4 - 1], fill=255)
+        icon.putalpha(mask.resize((size, size), Image.LANCZOS))
+    return icon
+
 
 def save_banner():
     w, h = 1280, 320
@@ -75,16 +66,23 @@ def save_banner():
     hs.draw_skeleton(draw, hs.OPEN_HAND, 1070, 175, 1.25)
     hs.draw_skeleton(draw, hs.SEARCH_HAND, 830, 200, 0.8)
 
-    title = hs.load(hs.TITLE_FONT, 100, 800)
-    draw.text((70, 55), "Gesture-App", font=title, fill=hs.ACCENT)
-    small = hs.load(hs.TEXT_FONT, 32, 600)
-    x = 74
-    avatar = Image.open(os.path.join(DOCS, "izu83.png"))
-    logo = Image.open(os.path.join(DOCS, "python-logo.png"))
-    x += badge(img, x, 200, "Izu83", small, avatar, circle=True) + 18
-    badge(img, x, 200, "Python", small, logo)
-    img.save(os.path.join(DOCS, "banner.png"))
+    # The project comes first: its name, then what it does.
+    draw.text((70, 30), "Gesture-App", font=hs.load(hs.TITLE_FONT, 100, 800), fill=hs.ACCENT)
+    draw.text((74, 158), "Control your PC with your hands and your voice",
+              font=hs.load(hs.TEXT_FONT, 30, 500), fill=hs.WHITE)
 
+    # The author is the maker; Python is only mentioned as the tool, in small grey text.
+    avatar = round_icon(os.path.join(DOCS, "izu83.png"), 58, circle=True)
+    img.paste(avatar, (74, 208), avatar)
+    draw.ellipse([72, 206, 134, 268], outline=hs.ACCENT, width=3)
+    draw.text((150, 238), "Made by Izu83", font=hs.load(hs.TEXT_FONT, 38, 700),
+              fill=hs.WHITE, anchor="lm")
+
+    logo = round_icon(os.path.join(DOCS, "python-logo.png"), 26)
+    img.paste(logo, (76, 282), logo)
+    draw.text((112, 295), "Built with Python  \u00b7  MediaPipe  \u00b7  OpenCV  \u00b7  Whisper",
+              font=hs.load(hs.TEXT_FONT, 24, 500), fill=hs.GREY, anchor="lm")
+    img.save(os.path.join(DOCS, "banner.png"))
 
 if __name__ == "__main__":
     os.makedirs(GESTURES, exist_ok=True)
