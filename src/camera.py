@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from help_screen import build_help_image
+from voice import VoiceTyper
 from mediapipe.tasks.python import BaseOptions, vision
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "hand_landmarker.task")
@@ -435,6 +436,8 @@ def main():
     help_open = False
     help_armed = True
     help_since = None
+    voice = VoiceTyper()
+    voice.preload()  # loads the speech model in the background
     timestamp_ms = 0
     while True:
         ok, frame = cap.read()
@@ -602,6 +605,7 @@ def main():
             search_since = search_since or now
             if search_armed and now - search_since >= SEARCH_HOLD_S:
                 open_windows_search()
+                voice.listen_and_type()  # speak your search; it is typed for you
                 search_armed = False
         else:
             search_since = None
@@ -610,6 +614,8 @@ def main():
         gesture = ""
         if middle_finger:
             gesture = "Fuck you too"
+        elif voice.label:
+            gesture = voice.label
         elif now < enter_until:
             gesture = "Enter"
         elif now < escape_until:
@@ -654,6 +660,7 @@ def main():
                 and not camera_window_minimized()):
             break
 
+    voice.close()
     landmarker.close()
     cap.release()
     cv2.destroyAllWindows()
