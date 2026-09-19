@@ -11,7 +11,7 @@
 
 ## <a name="what-it-does"></a><img src="docs/headings/what-it-does.png" alt="What it does" height="38">
 
-- **Tracks your hands** with your webcam and recognizes 15 gestures, from swipes and pushes to single-finger signs.
+- **Tracks your hands** with your webcam and recognizes 16 gestures, from swipes and pushes to single-finger signs.
 - **Controls Windows**: switch apps, open Task View, minimize or close the window in front, scroll, press Esc or Enter.
 - **Understands your voice**: make the Search sign and say *"open Spotify"*, *"play lo-fi music on YouTube"* or *"google weather in London"*.
 - **Runs offline**: hand tracking and speech recognition both run on your PC. Nothing you say or show is uploaded.
@@ -69,6 +69,11 @@ Hold the sign steady for a moment. The app waits about a third of a second after
     <td align="center"><img src="docs/gestures/mouse-mode.png" width="220"></td>
     <td align="center"><img src="docs/gestures/mouse-click.png" width="220"></td>
   </tr>
+  <tr>
+    <td></td>
+    <td align="center"><img src="docs/gestures/dictate.png" width="220"></td>
+    <td></td>
+  </tr>
 </table>
 
 | Gesture | How to make it | What it does |
@@ -86,6 +91,7 @@ Hold the sign steady for a moment. The app waits about a third of a second after
 | **Scroll Down** | Index and middle finger up, ring and pinky curled | Slowly scrolls the window in front down while you hold it |
 | **Escape** | Only the pinky up, other fingers curled | Presses the Esc key (skipped while the Camera window is in front, since Esc would quit the app) |
 | **Enter** | Ring and pinky up, index and middle curled | Presses the Enter key |
+| **Dictate** | Index, middle and ring fingers up, pinky curled | Listens, then types what you say into the window in front (see [Voice commands](#voice-commands)) |
 | **Mouse Mode** | Point with your index finger only (thumb tucked in) and hold | Starts the [air mouse](#air-mouse): your fingertip moves the cursor. A held fist stops it |
 | **Mouse Click** | In mouse mode: raise your pinky | Tap = click, keep it up = drag. Middle finger up = right click |
 
@@ -117,6 +123,8 @@ Make the **Search** sign, say something, then pause. The camera window shows "Li
 - **Speech recognition** is [Whisper](https://github.com/SYSTRAN/faster-whisper) `large-v3`, English only, running **on your PC**. On an NVIDIA GPU with about 4 GB of free memory a phrase takes about a second. Without a GPU it falls back to the CPU, which works but is much slower.
 - **Privacy:** your voice never leaves your PC. The one online request is finding the top video for "play ... on YouTube", and it only sends the search words.
 - **Bare "play" or "watch"** is treated as a YouTube video.
+
+**Dictation:** make the **Dictate** sign (index, middle and ring fingers up, pinky curled) and talk. The app listens, waits for a longer pause than for commands (about 1.5 seconds), and types what you said, with punctuation, into whichever window has the keyboard focus: a document, a chat box, a browser field. Click into the text box first. If the camera window itself is in front, it asks you to click a text box, because typing there would go nowhere.
 
 ## <a name="air-mouse"></a><img src="docs/headings/air-mouse.png" alt="Air mouse" height="38">
 

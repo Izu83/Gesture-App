@@ -79,6 +79,7 @@ L_HAND = hand("out", "up", "curl", "curl", "curl")
 PINKY_HAND = hand("in", "curl", "curl", "curl", "up")
 RING_HAND = hand("in", "curl", "curl", "up", "up")
 POINT_HAND = hand("in", "up", "curl", "curl", "curl")
+THREE_HAND = hand("in", "up", "up", "up", "curl")
 CLICK_HAND = hand("in", "up", "curl", "curl", "up")  # pointing, with the pinky raised
 
 
@@ -164,7 +165,7 @@ def tile(draw, col, row, title, how, does, art, fonts):
 def build_help_image():
     fonts = {"title": load(TITLE_FONT, 60, 800), "name": load(TITLE_FONT, 30, 700),
              "sub": load(TEXT_FONT, 18, 500)}
-    rows = 5
+    rows = 6
     img = Image.new("RGB", (TILE_W * COLS, TITLE_H + TILE_H * rows + FOOTER_H), BG)
     draw = ImageDraw.Draw(img)
     centered(draw, "Gesture Help", fonts["title"], img.width / 2, 20, ACCENT)
@@ -240,6 +241,8 @@ def build_help_image():
          "Presses the Enter key", single(RING_HAND), fonts)
     tile(draw, 1, 4, "Mouse Mode", "Point with your index finger\nand hold",
          "Your fingertip moves the cursor.\nA fist held stops it", mouse(POINT_HAND), fonts)
+    tile(draw, 1, 5, "Dictate", "Index, middle and ring\nfingers up (pinky curled)",
+         "Listens, then types what you\nsay into the window in front", single(THREE_HAND), fonts)
     tile(draw, 2, 4, "Mouse Click", "In mouse mode:\nraise your pinky",
          "Tap = click, keep up = drag\nMiddle finger up = right click", mouse(CLICK_HAND, 20), fonts)
 

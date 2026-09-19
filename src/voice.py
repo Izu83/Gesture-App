@@ -30,6 +30,8 @@ MIN_THRESHOLD = 0.012  # minimum RMS that counts as speech
 NO_SPEECH_TIMEOUT_S = 8.0  # give up if nothing is said
 END_SILENCE_S = 1.0  # stop after this much silence once you have spoken
 MAX_RECORD_S = 20.0
+DICTATION_END_SILENCE_S = 1.5  # dictation waits a little longer, so a pause does not cut you off
+DICTATION_MAX_RECORD_S = 40.0
 PRE_ROLL_S = 0.3
 
 # Whisper sometimes "hears" these in silence.
@@ -150,22 +152,26 @@ class VoiceTyper:
             return self._result
         return ""
 
-    def listen_and_type(self):
-        """Record one phrase, transcribe it and type it. Runs in the background."""
+    def listen_and_type(self, handler=None, dictation=False):
+        """Record one phrase, transcribe it and hand it to the handler. Runs in the background.
+
+        dictation=True keeps the punctuation, waits longer for pauses, and allows a longer phrase."""
         if not self._busy.acquire(blocking=False):
             return  # already listening
-        threading.Thread(target=self._run, daemon=True).start()
+        threading.Thread(target=self._run, args=(handler or self._handler, dictation),
+                         daemon=True).start()
 
-    def _run(self):
+    def _run(self, handler, dictation):
         try:
             self._state = "listening"
-            audio = self.record()
+            audio = self.record(DICTATION_END_SILENCE_S if dictation else END_SILENCE_S,
+                                DICTATION_MAX_RECORD_S if dictation else MAX_RECORD_S)
             if audio is None:
                 return
             self._state = "thinking"
-            text = self.transcribe(audio)
+            text = self.transcribe(audio, keep_punctuation=dictation)
             if text:
-                self._result = self._handler(text) or "Done"
+                self._result = handler(text) or "Done"
                 self._typed_until = time.time() + 1.5
         except Exception as error:
             print(f"Voice typing failed: {error}")
@@ -173,7 +179,7 @@ class VoiceTyper:
             self._state = "idle"
             self._busy.release()
 
-    def record(self):
+    def record(self, end_silence=END_SILENCE_S, max_record=MAX_RECORD_S):
         """Record from the default microphone until you stop talking. None if silent."""
         blocks = queue.Queue()
 
@@ -213,11 +219,11 @@ class VoiceTyper:
                 else:
                     speech.append(block)
                     silence = 0.0 if rms > threshold else silence + CHUNK / SAMPLE_RATE
-                    if silence >= END_SILENCE_S or elapsed > MAX_RECORD_S:
+                    if silence >= end_silence or elapsed > max_record:
                         break
         return np.concatenate(speech)
 
-    def transcribe(self, audio):
+    def transcribe(self, audio, keep_punctuation=False):
         """Turn a 16 kHz mono float32 array into text ("" if nothing was said)."""
         self._model_ready.wait()
         if self._model is None:
@@ -227,5 +233,6 @@ class VoiceTyper:
             audio, language=LANGUAGE, beam_size=5, vad_filter=True,
             condition_on_previous_text=False, temperature=0.0, hotwords=hotwords or None)
         text = " ".join(s.text.strip() for s in segments).strip()
-        text = text.rstrip(".!?,;: ")  # a search box does not need the full stop
-        return "" if text.lower() in HALLUCINATIONS else text
+        if not keep_punctuation:
+            text = text.rstrip(".!?,;: ")  # a search box does not need the full stop
+        return "" if text.lower().strip(".!?,;: ") in HALLUCINATIONS else text

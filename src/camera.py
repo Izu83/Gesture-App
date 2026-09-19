@@ -50,6 +50,7 @@ SCROLL_RATE = 240  # wheel units per second while a scroll sign is held (120 = o
 SCROLL_HOLD_S = 0.3  # the sign must be held this long before it starts scrolling
 SCROLL_SHOW_S = 0.3
 ESCAPE_HOLD_S = 0.3  # how long the pinky sign must be held to press Esc
+DICTATE_HOLD_S = 0.5  # how long the three-finger sign must be held to start dictating
 ENTER_HOLD_S = 0.3  # how long the ring + pinky sign must be held to press Enter
 PUSH_SHOW_S = 1.0
 FIST_HOLD_S = 0.5  # how long the fist must be held to trigger
@@ -211,6 +212,16 @@ def is_ring_pinky(lm):
         and dist(lm[20], lm[WRIST]) > dist(lm[18], lm[WRIST])
         and dist(lm[8], lm[WRIST]) < dist(lm[5], lm[WRIST])
         and dist(lm[12], lm[WRIST]) < dist(lm[9], lm[WRIST])
+    )
+
+
+def is_three_fingers(lm):
+    # Index, middle and ring fingers up, pinky curled; the thumb is ignored.
+    return (
+        dist(lm[8], lm[WRIST]) > dist(lm[6], lm[WRIST])
+        and dist(lm[12], lm[WRIST]) > dist(lm[10], lm[WRIST])
+        and dist(lm[16], lm[WRIST]) > dist(lm[14], lm[WRIST])
+        and dist(lm[20], lm[WRIST]) < dist(lm[17], lm[WRIST])
     )
 
 
@@ -457,6 +468,15 @@ def main():
         return commands.route(text, type_into_search)
 
     commands.preload_apps()  # lists installed apps in the background
+    def dictate(text):
+        # Type what you said into whichever window has the keyboard focus.
+        if camera_window_in_front():
+            return "Click a text box first"
+        type_text(text + " ")
+        return "Typed"
+
+    dictate_armed = True
+    dictate_since = None
     air = mouse.AirMouse()
     point_since = None
     voice = VoiceTyper(handler=handle_voice, vocabulary=commands.vocabulary)
@@ -559,6 +579,17 @@ def main():
         else:
             escape_since = None
             escape_armed = True
+
+        # Three fingers up (held briefly): listen, then type what you say into the window
+        # that has the keyboard focus. Once per sign.
+        if n_hands == 1 and stable and is_three_fingers(result.hand_landmarks[0]):
+            dictate_since = dictate_since or now
+            if dictate_armed and now - dictate_since >= DICTATE_HOLD_S:
+                voice.listen_and_type(handler=dictate, dictation=True)
+                dictate_armed = False
+        else:
+            dictate_since = None
+            dictate_armed = True
 
         # Ring and pinky up (held briefly) presses Enter, once per sign.
         if n_hands == 1 and stable and is_ring_pinky(result.hand_landmarks[0]):
