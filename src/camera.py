@@ -7,6 +7,8 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
+from help_screen import build_help_image
 from mediapipe.tasks.python import BaseOptions, vision
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "hand_landmarker.task")
@@ -31,6 +33,9 @@ SWIPE_WINDOW_S = 0.5  # time window the motion is measured over
 SWIPE_MIN_DX = 0.15  # fraction of frame width the hand must travel
 SLAP_WINDOW_S = 0.25 # a slap is a shorter, faster motion, open hand or not
 SLAP_MIN_DX = 0.10
+HELP_VIEW_H = 640  # visible height of the Help window; the rest scrolls
+HELP_SCROLL_STEP = 60
+HELP_HOLD_S = 0.5  # how long both hands must hold the Help sign
 SWIPE_SHOW_S = 1.0  # how long the swipe text stays on screen
 
 
@@ -69,6 +74,46 @@ def is_middle_finger(lm):
         and not extended(16, 14)
         and not extended(20, 18)
     )
+
+
+help_scroll = 0
+
+
+def on_help_mouse(event, x, y, flags, param):
+    global help_scroll
+    if event == cv2.EVENT_MOUSEWHEEL:
+        help_scroll += -HELP_SCROLL_STEP if flags > 0 else HELP_SCROLL_STEP
+
+
+def show_help(help_image):
+    global help_scroll
+    max_scroll = max(0, help_image.shape[0] - HELP_VIEW_H)
+    help_scroll = min(max(help_scroll, 0), max_scroll)
+    cv2.imshow("Help", help_image[help_scroll:help_scroll + HELP_VIEW_H])
+
+
+def is_help_sign(lm):
+    # Thumb, index and pinky up; middle and ring curled.
+    def extended(tip, pip):
+        return dist(lm[tip], lm[WRIST]) > dist(lm[pip], lm[WRIST])
+
+    thumb_out = dist(lm[THUMB_TIP], lm[PINKY_MCP]) > dist(lm[THUMB_IP], lm[PINKY_MCP])
+    return (
+        thumb_out
+        and extended(8, 6)
+        and extended(20, 18)
+        and not extended(12, 10)
+        and not extended(16, 14)
+    )
+
+
+def is_search(lm):
+    # Thumb and index tips touching in a circle; the other fingers are ignored.
+    hand_size = dist(lm[WRIST], lm[9])
+    touching = dist(lm[THUMB_TIP], lm[8]) < 0.3 * hand_size
+    # Index is curled into a loop, not tucked into a fist.
+    looped = dist(lm[8], lm[WRIST]) > 0.8 * dist(lm[INDEX_MCP], lm[WRIST])
+    return touching and looped
 
 
 def load_font(size):
@@ -140,6 +185,7 @@ def draw_hand(frame, lm):
 
 
 def main():
+    global help_scroll
     ensure_model()
     landmarker = vision.HandLandmarker.create_from_options(
         vision.HandLandmarkerOptions(
@@ -161,6 +207,10 @@ def main():
     swipe_history = deque()
     swipe_text = ""
     swipe_until = 0.0
+    help_image = None
+    help_open = False
+    help_armed = True
+    help_since = None
     timestamp_ms = 0
     while True:
         ok, frame = cap.read()
@@ -175,8 +225,14 @@ def main():
 
         open_palms = 0
         middle_finger = False
+        search = False
+        help_hands = 0
         for lm, handed in zip(result.hand_landmarks, result.handedness):
             draw_hand(frame, lm)
+            if is_help_sign(lm):
+                help_hands += 1
+            if is_search(lm):
+                search = True
             if is_middle_finger(lm):
                 middle_finger = True
             if is_open_palm(lm, handed[0].category_name):
@@ -195,11 +251,30 @@ def main():
         else:
             swipe_history.clear()
 
+        # Both hands making the Help sign (held briefly) opens the Help window.
+        if help_hands >= 2:
+            help_since = help_since or now
+            if help_armed and not help_open and now - help_since >= HELP_HOLD_S:
+                if help_image is None:
+                    help_image = build_help_image()
+                help_scroll = 0
+                show_help(help_image)
+                cv2.setMouseCallback("Help", on_help_mouse)
+                help_open = True
+                help_armed = False
+        else:
+            help_since = None
+            help_armed = True
+
         gesture = ""
         if middle_finger:
             gesture = "Fuck you too"
         elif now < swipe_until:
             gesture = swipe_text
+        elif help_hands >= 2:
+            gesture = "Help"
+        elif search:
+            gesture = "Search"
         elif open_palms >= 2:
             gesture = "Double Open Palm"
         elif open_palms == 1:
@@ -209,9 +284,21 @@ def main():
             frame = draw_text_bottom(frame, gesture, font)
 
         cv2.imshow("Camera", frame)
-        key = cv2.waitKey(1) & 0xFF
+        raw_key = cv2.waitKeyEx(1)
+        key = raw_key & 0xFF
         if key in (27, ord("q")):
             break
+        if key == ord("h") and help_open:
+            cv2.destroyWindow("Help")
+            help_open = False
+        if help_open and cv2.getWindowProperty("Help", cv2.WND_PROP_VISIBLE) < 1:
+            help_open = False
+        if help_open:
+            if raw_key == 2621440 or key == ord("s"):  # Down arrow / S
+                help_scroll += HELP_SCROLL_STEP
+            elif raw_key == 2490368 or key == ord("w"):  # Up arrow / W
+                help_scroll -= HELP_SCROLL_STEP
+            show_help(help_image)
         if cv2.getWindowProperty("Camera", cv2.WND_PROP_VISIBLE) < 1:
             break
 
