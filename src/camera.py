@@ -1,3 +1,4 @@
+import ctypes
 import os
 import time
 import urllib.request
@@ -35,6 +36,13 @@ SLAP_WINDOW_S = 0.25 # a slap is a shorter, faster motion, open hand or not
 SLAP_MIN_DX = 0.10
 HELP_VIEW_H = 640  # visible height of the Help window; the rest scrolls
 HELP_SCROLL_STEP = 60
+PUSH_WINDOW_S = 0.5  # time window the hand growth is measured over
+PUSH_GROWTH = 1.35  # hand must get this much bigger (moving toward the camera)
+PUSH_MAX_SHIFT = 0.10  # a push stays in place; raising your hands does not count
+STABLE_S = 0.3  # hands must be tracked steadily this long before swipes or pushes count
+PUSH_SHOW_S = 1.0
+FIST_HOLD_S = 0.5  # how long the fist must be held to trigger
+SEARCH_HOLD_S = 0.3  # how long the Search sign must be held to trigger
 HELP_HOLD_S = 0.5  # how long both hands must hold the Help sign
 SWIPE_SHOW_S = 1.0  # how long the swipe text stays on screen
 
@@ -76,6 +84,104 @@ def is_middle_finger(lm):
     )
 
 
+def minimize_camera_window():
+    hwnd = ctypes.windll.user32.FindWindowW(None, "Camera")
+    if hwnd:
+        ctypes.windll.user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+
+
+def camera_window_minimized():
+    hwnd = ctypes.windll.user32.FindWindowW(None, "Camera")
+    return bool(hwnd and ctypes.windll.user32.IsIconic(hwnd))
+
+
+def task_view_active():
+    user32 = ctypes.windll.user32
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return False
+    title = ctypes.create_unicode_buffer(256)
+    cls = ctypes.create_unicode_buffer(256)
+    user32.GetWindowTextW(hwnd, title, 256)
+    user32.GetClassNameW(hwnd, cls, 256)
+    return title.value == "Task View" or cls.value in (
+        "XamlExplorerHostIslandWindow", "MultitaskingViewFrame")
+
+
+def switch_app(swipe):
+    # Right Swipe -> next app (Alt+Tab), Left Swipe -> previous (Alt+Shift+Tab).
+    # While Task View is open, the swipes move its selection with the arrow keys.
+    VK_MENU, VK_SHIFT, VK_TAB, KEYUP = 0x12, 0x10, 0x09, 0x0002
+    VK_LEFT, VK_RIGHT, EXTENDED = 0x25, 0x27, 0x0001
+    keybd_event = ctypes.windll.user32.keybd_event
+    if task_view_active():
+        vk = VK_LEFT if swipe == "Left Swipe" else VK_RIGHT
+        keybd_event(vk, 0, EXTENDED, 0)
+        keybd_event(vk, 0, EXTENDED | KEYUP, 0)
+        return
+    keybd_event(VK_MENU, 0, 0, 0)
+    if swipe == "Left Swipe":
+        keybd_event(VK_SHIFT, 0, 0, 0)
+    keybd_event(VK_TAB, 0, 0, 0)
+    keybd_event(VK_TAB, 0, KEYUP, 0)
+    if swipe == "Left Swipe":
+        keybd_event(VK_SHIFT, 0, KEYUP, 0)
+    keybd_event(VK_MENU, 0, KEYUP, 0)
+
+
+def hand_scale(lm, w, h):
+    def d(a, b):
+        return (((lm[a].x - lm[b].x) * w) ** 2 + ((lm[a].y - lm[b].y) * h) ** 2) ** 0.5
+
+    return (d(WRIST, 9) + d(5, 17)) / 2
+
+
+def is_fist(lm):
+    return all(
+        dist(lm[tip], lm[WRIST]) < 0.9 * dist(lm[mcp], lm[WRIST])
+        for tip, mcp in ((8, 5), (12, 9), (16, 13), (20, 17))
+    )
+
+
+def open_task_view():
+    # Press Win+Tab, which opens Windows Task View.
+    VK_LWIN, VK_TAB, KEYUP = 0x5B, 0x09, 0x0002
+    keybd_event = ctypes.windll.user32.keybd_event
+    keybd_event(VK_LWIN, 0, 0, 0)
+    keybd_event(VK_TAB, 0, 0, 0)
+    keybd_event(VK_TAB, 0, KEYUP, 0)
+    keybd_event(VK_LWIN, 0, KEYUP, 0)
+
+
+def detect_push(history, now):
+    """Return the number of hands (1 or 2) that pushed toward the camera, or None.
+
+    history holds (time, hand_count, mean_hand_size, center_x, center_y) for a
+    steady run of frames. Pushing makes the open hands grow quickly in the image
+    while staying in place; raising your hands moves them, so it does not count.
+    """
+    while history and now - history[0][0] > PUSH_WINDOW_S:
+        history.popleft()
+    if len(history) < 3 or history[-1][0] - history[0][0] < 0.2:
+        return None
+    first, last = history[0], history[-1]
+    shift = ((last[3] - first[3]) ** 2 + (last[4] - first[4]) ** 2) ** 0.5
+    if last[2] / first[2] < PUSH_GROWTH or shift > PUSH_MAX_SHIFT:
+        return None
+    history.clear()
+    return last[1]
+
+
+def open_windows_search():
+    # Press Win+S, which opens Windows Search.
+    VK_LWIN, VK_S, KEYUP = 0x5B, 0x53, 0x0002
+    keybd_event = ctypes.windll.user32.keybd_event
+    keybd_event(VK_LWIN, 0, 0, 0)
+    keybd_event(VK_S, 0, 0, 0)
+    keybd_event(VK_S, 0, KEYUP, 0)
+    keybd_event(VK_LWIN, 0, KEYUP, 0)
+
+
 help_scroll = 0
 
 
@@ -112,7 +218,7 @@ def is_search(lm):
     hand_size = dist(lm[WRIST], lm[9])
     touching = dist(lm[THUMB_TIP], lm[8]) < 0.3 * hand_size
     # Index is curled into a loop, not tucked into a fist.
-    looped = dist(lm[8], lm[WRIST]) > 0.8 * dist(lm[INDEX_MCP], lm[WRIST])
+    looped = dist(lm[8], lm[WRIST]) > dist(lm[INDEX_MCP], lm[WRIST])
     return touching and looped
 
 
@@ -149,19 +255,24 @@ def _horizontal_move(samples, min_dx):
         return None
     dx = samples[-1][1] - samples[0][1]
     dy = samples[-1][2] - samples[0][2]
-    if abs(dx) < min_dx or abs(dy) > abs(dx) * 0.8:
+    growth = samples[-1][4] / samples[0][4]
+    if abs(dx) < min_dx or abs(dy) > abs(dx) * 0.5 or not 0.8 < growth < 1.25:
         return None
     return dx
 
 
 def detect_swipe(history, now):
-    """Return "Right Swipe" (moving right to left), "Left Swipe" or None.
+    """Return "Right Swipe" (moving left to right), "Left Swipe" or None.
 
-    history holds (time, x, y, hand_open). A swipe is a wide move with an open
-    hand; a slap is a short, fast move that counts even if the hand is not open.
+    history holds (time, x, y, hand_open, hand_size) for a steady single hand.
+    A swipe is a wide, mostly sideways move with an open hand at a steady
+    distance from the camera; a slap is a shorter, faster move that counts even
+    if the hand is not open.
     """
     while history and now - history[0][0] > SWIPE_WINDOW_S:
         history.popleft()
+    if not history:
+        return None
 
     dx = None
     if history[-1][3]:
@@ -172,7 +283,7 @@ def detect_swipe(history, now):
     if dx is None:
         return None
     history.clear()
-    return "Right Swipe" if dx < 0 else "Left Swipe"
+    return "Right Swipe" if dx > 0 else "Left Swipe"
 
 
 def draw_hand(frame, lm):
@@ -207,6 +318,17 @@ def main():
     swipe_history = deque()
     swipe_text = ""
     swipe_until = 0.0
+    push_history = deque()
+    prev_n_hands = 0
+    n_changed_at = 0.0
+    fist_armed = True
+    fist_since = None
+    fist_until = 0.0
+    push_until = 0.0
+    push_text = ""
+    quit_at = None
+    search_armed = True
+    search_since = None
     help_image = None
     help_open = False
     help_armed = True
@@ -227,8 +349,11 @@ def main():
         middle_finger = False
         search = False
         help_hands = 0
+        fist = False
         for lm, handed in zip(result.hand_landmarks, result.handedness):
             draw_hand(frame, lm)
+            if is_fist(lm) and not is_search(lm):
+                fist = True
             if is_help_sign(lm):
                 help_hands += 1
             if is_search(lm):
@@ -239,13 +364,25 @@ def main():
                 open_palms += 1
 
         now = time.time()
-        if result.hand_landmarks:
+        fh, fw = frame.shape[:2]
+        n_hands = len(result.hand_landmarks)
+        if n_hands != prev_n_hands:  # a hand appeared or vanished: start over
+            prev_n_hands = n_hands
+            n_changed_at = now
+            swipe_history.clear()
+            push_history.clear()
+        stable = now - n_changed_at >= STABLE_S
+
+        # Swipes use a single, steadily tracked hand.
+        if n_hands == 1 and stable:
             lm = result.hand_landmarks[0]
             cx = sum(lm[i].x for i in (0, 5, 9, 13, 17)) / 5
             cy = sum(lm[i].y for i in (0, 5, 9, 13, 17)) / 5
-            swipe_history.append((now, cx, cy, is_hand_open(lm)))
+            swipe_history.append(
+                (now, cx, cy, is_hand_open(lm), hand_scale(lm, fw, fh)))
             swipe = detect_swipe(swipe_history, now)
-            if swipe:
+            if swipe and now >= swipe_until:  # cooldown stops the return motion firing
+                switch_app(swipe)
                 swipe_text = swipe
                 swipe_until = now + SWIPE_SHOW_S
         else:
@@ -266,9 +403,54 @@ def main():
             help_since = None
             help_armed = True
 
+        # Holding a closed fist (all fingers down) opens Task View (Win+Tab).
+        # Search needs the index finger looped out, so the two never overlap.
+        if fist:
+            fist_since = fist_since or now
+            if fist_armed and now - fist_since >= FIST_HOLD_S:
+                open_task_view()
+                fist_armed = False
+                fist_until = now + PUSH_SHOW_S
+        else:
+            fist_since = None
+            fist_armed = True
+
+        # Pushing open hands toward the camera: two hands close the app, one minimizes.
+        if stable and n_hands and all(is_hand_open(lm) for lm in result.hand_landmarks):
+            sizes = [hand_scale(lm, fw, fh) for lm in result.hand_landmarks]
+            cxs = [sum(lm[i].x for i in (0, 5, 9, 13, 17)) / 5 for lm in result.hand_landmarks]
+            cys = [sum(lm[i].y for i in (0, 5, 9, 13, 17)) / 5 for lm in result.hand_landmarks]
+            push_history.append((now, n_hands, sum(sizes) / n_hands,
+                                 sum(cxs) / n_hands, sum(cys) / n_hands))
+            pushed = detect_push(push_history, now)
+            if pushed == 2:
+                push_text = "Double Push"
+                push_until = now + PUSH_SHOW_S
+                quit_at = now + 0.6
+            elif pushed == 1:
+                push_text = "Push"
+                push_until = now + PUSH_SHOW_S
+                minimize_camera_window()
+        else:
+            push_history.clear()
+
+        # Holding the Search sign briefly opens Windows Search (once per sign).
+        if search and not middle_finger and help_hands < 2:
+            search_since = search_since or now
+            if search_armed and now - search_since >= SEARCH_HOLD_S:
+                open_windows_search()
+                search_armed = False
+        else:
+            search_since = None
+            search_armed = True
+
         gesture = ""
         if middle_finger:
             gesture = "Fuck you too"
+        elif now < fist_until:
+            gesture = "Fist"
+        elif now < push_until:
+            gesture = push_text
         elif now < swipe_until:
             gesture = swipe_text
         elif help_hands >= 2:
@@ -284,6 +466,8 @@ def main():
             frame = draw_text_bottom(frame, gesture, font)
 
         cv2.imshow("Camera", frame)
+        if quit_at and now >= quit_at:
+            break
         raw_key = cv2.waitKeyEx(1)
         key = raw_key & 0xFF
         if key in (27, ord("q")):
@@ -299,7 +483,8 @@ def main():
             elif raw_key == 2490368 or key == ord("w"):  # Up arrow / W
                 help_scroll -= HELP_SCROLL_STEP
             show_help(help_image)
-        if cv2.getWindowProperty("Camera", cv2.WND_PROP_VISIBLE) < 1:
+        if (cv2.getWindowProperty("Camera", cv2.WND_PROP_VISIBLE) < 1
+                and not camera_window_minimized()):
             break
 
     landmarker.close()
