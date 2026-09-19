@@ -9,12 +9,14 @@ HERE = os.path.dirname(__file__)
 TITLE_FONT = os.path.join(HERE, "Limelight-Regular.ttf")
 TEXT_FONT = r"C:\Windows\Fonts\segoeui.ttf"
 
-BG = (24, 24, 28)
-TILE_BG = (36, 36, 42)
+NIGHT = (0, 15, 8)  # #000F08
+IMPERIAL = (251, 54, 64)  # #FB3640
+BG = NIGHT
+TILE_BG = (12, 30, 22)
 LINE = (255, 255, 255)
-DOT = (255, 60, 60)
-ORANGE = (255, 140, 0)
-GREY = (190, 190, 190)
+DOT = IMPERIAL
+ACCENT = IMPERIAL
+GREY = (185, 196, 190)
 WHITE = (240, 240, 240)
 
 TILE_W, TILE_H = 330, 480
@@ -88,30 +90,30 @@ def draw_skeleton(draw, pts, cx, cy, scale=1.0, mirror=False):
 
 
 def draw_arrow(draw, x_from, x_to, y):
-    draw.line([(x_from, y), (x_to, y)], fill=ORANGE, width=6)
+    draw.line([(x_from, y), (x_to, y)], fill=ACCENT, width=6)
     d = 1 if x_to > x_from else -1
-    draw.polygon([(x_to, y), (x_to - 18 * d, y - 12), (x_to - 18 * d, y + 12)], fill=ORANGE)
+    draw.polygon([(x_to, y), (x_to - 18 * d, y - 12), (x_to - 18 * d, y + 12)], fill=ACCENT)
 
 
 def draw_growth_arrows(draw, cx, cy, outward):
-    """Four orange arrows around a hand: outward = toward the camera, inward = away."""
+    """Four accent-colored arrows around a hand: outward = toward the camera, inward = away."""
     for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
         far = (cx + sx * 120, cy + sy * 95)
         near = (cx + sx * 80, cy + sy * 62)
         a, b = (near, far) if outward else (far, near)
-        draw.line([a, b], fill=ORANGE, width=5)
+        draw.line([a, b], fill=ACCENT, width=5)
         dx, dy = b[0] - a[0], b[1] - a[1]
         n = (dx * dx + dy * dy) ** 0.5
         ux, uy = dx / n, dy / n
         px, py = -uy, ux
         draw.polygon([b, (b[0] - 16 * ux + 9 * px, b[1] - 16 * uy + 9 * py),
-                      (b[0] - 16 * ux - 9 * px, b[1] - 16 * uy - 9 * py)], fill=ORANGE)
+                      (b[0] - 16 * ux - 9 * px, b[1] - 16 * uy - 9 * py)], fill=ACCENT)
 
 
 def draw_arrow_v(draw, y_from, y_to, x):
-    draw.line([(x, y_from), (x, y_to)], fill=ORANGE, width=6)
+    draw.line([(x, y_from), (x, y_to)], fill=ACCENT, width=6)
     d = 1 if y_to > y_from else -1
-    draw.polygon([(x, y_to), (x - 12, y_to - 18 * d), (x + 12, y_to - 18 * d)], fill=ORANGE)
+    draw.polygon([(x, y_to), (x - 12, y_to - 18 * d), (x + 12, y_to - 18 * d)], fill=ACCENT)
 
 
 def load(path, size):
@@ -134,7 +136,7 @@ def tile(draw, col, row, title, how, does, art, fonts):
     draw.rounded_rectangle([x0 + 10, y0 + 10, x0 + TILE_W - 10, y0 + TILE_H - 10],
                            radius=18, fill=TILE_BG)
     art(draw, x0 + TILE_W // 2, y0 + 5)
-    centered(draw, title, fonts["name"], cx, y0 + 295, ORANGE)
+    centered(draw, title, fonts["name"], cx, y0 + 295, ACCENT)
     y = y0 + 335
     for line in how.split("\n"):
         centered(draw, line, fonts["sub"], cx, y, GREY)
@@ -151,7 +153,7 @@ def build_help_image():
     rows = 5
     img = Image.new("RGB", (TILE_W * COLS, TITLE_H + TILE_H * rows + FOOTER_H), BG)
     draw = ImageDraw.Draw(img)
-    centered(draw, "Gesture Help", fonts["title"], img.width / 2, 20, ORANGE)
+    centered(draw, "Gesture Help", fonts["title"], img.width / 2, 20, ACCENT)
 
     def single(pts):
         return lambda d, x, y: draw_skeleton(d, pts, x, y + 170)

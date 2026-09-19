@@ -26,7 +26,7 @@ FINGERS = [(8, 6), (12, 10), (16, 14), (20, 18)]  # (tip, pip) for index..pinky
 THUMB_TIP, THUMB_IP, PINKY_MCP = 4, 3, 17
 INDEX_MCP = 5
 
-TEXT_COLOR = (255, 140, 0)  # orange (RGB)
+TEXT_COLOR = (251, 54, 64)  # Imperial #FB3640 (RGB)
 FONT_CANDIDATES = [
     os.path.join(os.path.dirname(__file__), "Limelight-Regular.ttf"),
     r"C:\Windows\Fonts\Inkfree.ttf",
@@ -333,7 +333,7 @@ def draw_text_bottom(frame, text, font):
     x = (w - (box[2] - box[0])) // 2 - box[0]
     y = h - (box[3] - box[1]) - 30 - box[1]
     draw.text((x, y), text, font=font, fill=TEXT_COLOR,
-              stroke_width=2, stroke_fill=(0, 0, 0))
+              stroke_width=2, stroke_fill=(0, 15, 8))
     return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
 
@@ -386,7 +386,7 @@ def draw_hand(frame, lm):
     for c in vision.HandLandmarksConnections.HAND_CONNECTIONS:
         cv2.line(frame, pts[c.start], pts[c.end], (255, 255, 255), 2)
     for p in pts:
-        cv2.circle(frame, p, 4, (0, 0, 255), -1)
+        cv2.circle(frame, p, 4, (64, 54, 251), -1)  # Imperial (BGR)
 
 
 def main():

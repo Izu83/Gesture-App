@@ -34,8 +34,8 @@ def badge(img, x, y, text, font, icon, circle=False):
     box = draw.textbbox((0, 0), text, font=font)
     h, pad, icon_size = 62, 8, 46
     w = pad + icon_size + 14 + (box[2] - box[0]) + 28
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=h // 2, fill=(36, 36, 42),
-                           outline=hs.ORANGE, width=3)
+    draw.rounded_rectangle([x, y, x + w, y + h], radius=h // 2, fill=hs.TILE_BG,
+                           outline=hs.ACCENT, width=3)
     icon = icon.convert("RGBA").resize((icon_size, icon_size), Image.LANCZOS)
     if circle:
         mask = Image.new("L", (icon_size * 4, icon_size * 4), 0)
@@ -50,17 +50,17 @@ def save_banner():
     w, h = 1280, 320
     img = Image.new("RGB", (w, h), hs.BG)
     draw = ImageDraw.Draw(img)
-    for x in range(w):  # soft orange glow from the right
+    for x in range(w):  # soft accent glow from the right
         t = max(0.0, (x - w * 0.45) / (w * 0.55)) ** 2
-        c = tuple(int(a + (b - a) * t * 0.35) for a, b in zip(hs.BG, hs.ORANGE))
+        c = tuple(int(a + (b - a) * t * 0.3) for a, b in zip(hs.BG, hs.ACCENT))
         draw.line([(x, 0), (x, h)], fill=c)
-    draw.rounded_rectangle([1, 1, w - 2, h - 2], radius=24, outline=(70, 70, 78), width=2)
+    draw.rounded_rectangle([1, 1, w - 2, h - 2], radius=24, outline=(40, 64, 52), width=2)
 
     hs.draw_skeleton(draw, hs.OPEN_HAND, 1070, 175, 1.25)
     hs.draw_skeleton(draw, hs.SEARCH_HAND, 830, 200, 0.8)
 
     title = hs.load(hs.TITLE_FONT, 92)
-    draw.text((70, 55), "Gesture-App", font=title, fill=hs.ORANGE)
+    draw.text((70, 55), "Gesture-App", font=title, fill=hs.ACCENT)
     small = hs.load(hs.TEXT_FONT, 32)
     x = 74
     avatar = Image.open(os.path.join(DOCS, "izu83.png"))
