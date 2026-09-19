@@ -27,14 +27,23 @@ def save_help_images():
             os.path.join(GESTURES, name + ".png"))
 
 
-def badge(draw, x, y, text, font, fill, outline, text_fill):
+def badge(img, x, y, text, font, icon, circle=False):
+    """A rounded badge with a small icon (a profile picture or logo) and a text."""
+    draw = ImageDraw.Draw(img)
     box = draw.textbbox((0, 0), text, font=font)
-    w, h = box[2] - box[0] + 56, 62  # fixed height so every badge lines up
-    draw.rounded_rectangle([x, y, x + w, y + h], radius=h // 2, fill=fill,
-                           outline=outline, width=3)
-    draw.text((x + 28 - box[0], y + h // 2), text, font=font, fill=text_fill, anchor="lm")
+    h, pad, icon_size = 62, 8, 46
+    w = pad + icon_size + 14 + (box[2] - box[0]) + 28
+    draw.rounded_rectangle([x, y, x + w, y + h], radius=h // 2, fill=(36, 36, 42),
+                           outline=hs.ORANGE, width=3)
+    icon = icon.convert("RGBA").resize((icon_size, icon_size), Image.LANCZOS)
+    if circle:
+        mask = Image.new("L", (icon_size * 4, icon_size * 4), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, icon_size * 4 - 1, icon_size * 4 - 1], fill=255)
+        icon.putalpha(mask.resize((icon_size, icon_size), Image.LANCZOS))
+    img.paste(icon, (x + pad, y + (h - icon_size) // 2), icon)
+    draw.text((x + pad + icon_size + 14 - box[0], y + h // 2), text, font=font,
+              fill=hs.WHITE, anchor="lm")
     return w
-
 
 def save_banner():
     w, h = 1280, 320
@@ -53,8 +62,10 @@ def save_banner():
     draw.text((70, 55), "Gesture-App", font=title, fill=hs.ORANGE)
     small = hs.load(hs.TEXT_FONT, 32)
     x = 74
-    x += badge(draw, x, 200, "Izu83", small, (36, 36, 42), hs.ORANGE, hs.WHITE) + 18
-    badge(draw, x, 200, "Python", small, (36, 36, 42), hs.ORANGE, hs.WHITE)
+    avatar = Image.open(os.path.join(DOCS, "izu83.png"))
+    logo = Image.open(os.path.join(DOCS, "python-logo.png"))
+    x += badge(img, x, 200, "Izu83", small, avatar, circle=True) + 18
+    badge(img, x, 200, "Python", small, logo)
     img.save(os.path.join(DOCS, "banner.png"))
 
 
