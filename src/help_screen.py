@@ -15,8 +15,9 @@ LINE = (255, 255, 255)
 DOT = (255, 60, 60)
 ORANGE = (255, 140, 0)
 GREY = (190, 190, 190)
+WHITE = (240, 240, 240)
 
-TILE_W, TILE_H = 330, 400
+TILE_W, TILE_H = 330, 480
 COLS = 3
 TITLE_H = 100
 FOOTER_H = 50
@@ -70,6 +71,7 @@ OPEN_HAND = hand("out", "up", "up", "up", "up")
 SEARCH_HAND = hand("loop", "loop", "up", "up", "up")
 MIDDLE_HAND = hand("in", "curl", "up", "curl", "curl")
 HELP_HAND = hand("out", "up", "curl", "curl", "up")
+FIST_HAND = hand("in", "curl", "curl", "curl", "curl")
 
 
 def draw_skeleton(draw, pts, cx, cy, scale=1.0, mirror=False):
@@ -87,6 +89,21 @@ def draw_arrow(draw, x_from, x_to, y):
     draw.polygon([(x_to, y), (x_to - 18 * d, y - 12), (x_to - 18 * d, y + 12)], fill=ORANGE)
 
 
+def draw_growth_arrows(draw, cx, cy, outward):
+    """Four orange arrows around a hand: outward = toward the camera, inward = away."""
+    for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+        far = (cx + sx * 120, cy + sy * 95)
+        near = (cx + sx * 80, cy + sy * 62)
+        a, b = (near, far) if outward else (far, near)
+        draw.line([a, b], fill=ORANGE, width=5)
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        n = (dx * dx + dy * dy) ** 0.5
+        ux, uy = dx / n, dy / n
+        px, py = -uy, ux
+        draw.polygon([b, (b[0] - 16 * ux + 9 * px, b[1] - 16 * uy + 9 * py),
+                      (b[0] - 16 * ux - 9 * px, b[1] - 16 * uy - 9 * py)], fill=ORANGE)
+
+
 def load(path, size):
     try:
         return ImageFont.truetype(path, size)
@@ -99,20 +116,29 @@ def centered(draw, text, font, cx, y, fill):
     draw.text((cx - (box[2] - box[0]) / 2 - box[0], y), text, font=font, fill=fill)
 
 
-def tile(draw, col, row, title, sub, art, fonts):
+def tile(draw, col, row, title, how, does, art, fonts):
+    """One gesture: a picture, its name, how to make it, and what it does."""
     x0 = col * TILE_W
     y0 = TITLE_H + row * TILE_H
+    cx = x0 + TILE_W / 2
     draw.rounded_rectangle([x0 + 10, y0 + 10, x0 + TILE_W - 10, y0 + TILE_H - 10],
                            radius=18, fill=TILE_BG)
     art(draw, x0 + TILE_W // 2, y0 + 5)
-    centered(draw, title, fonts["name"], x0 + TILE_W / 2, y0 + 305, ORANGE)
-    centered(draw, sub, fonts["sub"], x0 + TILE_W / 2, y0 + 350, GREY)
+    centered(draw, title, fonts["name"], cx, y0 + 295, ORANGE)
+    y = y0 + 335
+    for line in how.split("\n"):
+        centered(draw, line, fonts["sub"], cx, y, GREY)
+        y += 22
+    y += 12
+    for i, line in enumerate(does.split("\n")):
+        centered(draw, ("\u2192 " if i == 0 else "") + line, fonts["sub"], cx, y, WHITE)
+        y += 22
 
 
 def build_help_image():
     fonts = {"title": load(TITLE_FONT, 52), "name": load(TITLE_FONT, 26),
              "sub": load(TEXT_FONT, 17)}
-    rows = 2
+    rows = 3
     img = Image.new("RGB", (TILE_W * COLS, TITLE_H + TILE_H * rows + FOOTER_H), BG)
     draw = ImageDraw.Draw(img)
     centered(draw, "Gesture Help", fonts["title"], img.width / 2, 20, ORANGE)
@@ -128,20 +154,35 @@ def build_help_image():
 
     def swipe(d, x, y):
         draw_skeleton(d, OPEN_HAND, x, y + 190)
-        draw_arrow(d, x + 110, x - 110, y + 30)
+        draw_arrow(d, x, x - 120, y + 30)
+        draw_arrow(d, x, x + 120, y + 30)
 
-    tile(draw, 0, 0, "Open Palm", "Palm to the camera, fingers spread",
-         single(OPEN_HAND), fonts)
+    def growth(outward):
+        def art(d, x, y):
+            draw_skeleton(d, OPEN_HAND, x, y + 175, 0.7)
+            draw_growth_arrows(d, x, y + 175, outward)
+        return art
+
+    tile(draw, 0, 0, "Open Palm", "Palm to the camera,\nfingers spread",
+         "Just shows the label,\nno action", single(OPEN_HAND), fonts)
     tile(draw, 1, 0, "Double Open Palm", "Both palms to the camera",
-         double(OPEN_HAND), fonts)
-    tile(draw, 2, 0, "Swipe", "Open hand, move it sideways (or slap)", swipe, fonts)
-    tile(draw, 0, 1, "Search", "Thumb and index tip touch in a circle",
-         single(SEARCH_HAND), fonts)
+         "Just shows the label,\nno action", double(OPEN_HAND), fonts)
+    tile(draw, 2, 0, "Swipe", "Open hand moved sideways\n(or a quick slap)",
+         "Left to right: next app\nRight to left: previous app\nIn Task View: moves the pick",
+         swipe, fonts)
+    tile(draw, 0, 1, "Search", "Thumb and index touch\nin a circle",
+         "Opens Windows Search\n(Win+S)", single(SEARCH_HAND), fonts)
     tile(draw, 1, 1, "Middle Finger", "Only the middle finger up",
-         single(MIDDLE_HAND), fonts)
-    tile(draw, 2, 1, "Help", "Thumb, index, pinky up - both hands",
-         double(HELP_HAND), fonts)
-
+         "Shows a rude reply\non screen", single(MIDDLE_HAND), fonts)
+    tile(draw, 2, 1, "Help", "Thumb, index and pinky up\non both hands",
+         "Opens this Help window", double(HELP_HAND), fonts)
+    tile(draw, 0, 2, "Fist", "Hold a closed fist",
+         "Opens Task View\n(Win+Tab)", single(FIST_HAND), fonts)
+    tile(draw, 1, 2, "Push", "Open hands toward\nthe camera",
+         "1 hand: minimizes the window\n2 hands: closes the window\nIn Task View: cancels",
+         growth(True), fonts)
+    tile(draw, 2, 2, "Pull", "Open hand back away\nfrom the camera",
+         "In Task View: opens the\nselected window", growth(False), fonts)
     centered(draw, "Scroll: mouse wheel, arrows or W/S. Close: the X or H",
              fonts["sub"], img.width / 2, img.height - 38, GREY)
     return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)

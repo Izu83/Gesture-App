@@ -84,10 +84,30 @@ def is_middle_finger(lm):
     )
 
 
-def minimize_camera_window():
-    hwnd = ctypes.windll.user32.FindWindowW(None, "Camera")
+def foreground_window():
+    """The window in front, or None for the desktop and taskbar."""
+    user32 = ctypes.windll.user32
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return None
+    cls = ctypes.create_unicode_buffer(256)
+    user32.GetClassNameW(hwnd, cls, 256)
+    if cls.value in ("Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"):
+        return None
+    return hwnd
+
+
+def minimize_foreground_window():
+    hwnd = foreground_window()
     if hwnd:
         ctypes.windll.user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+
+
+def close_foreground_window():
+    # WM_CLOSE asks the program to close, so it can still ask to save your work.
+    hwnd = foreground_window()
+    if hwnd:
+        ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)  # WM_CLOSE
 
 
 def camera_window_minimized():
@@ -143,6 +163,12 @@ def is_fist(lm):
     )
 
 
+def press_key(vk):
+    keybd_event = ctypes.windll.user32.keybd_event
+    keybd_event(vk, 0, 0, 0)
+    keybd_event(vk, 0, 0x0002, 0)  # key up
+
+
 def open_task_view():
     # Press Win+Tab, which opens Windows Task View.
     VK_LWIN, VK_TAB, KEYUP = 0x5B, 0x09, 0x0002
@@ -154,11 +180,12 @@ def open_task_view():
 
 
 def detect_push(history, now):
-    """Return the number of hands (1 or 2) that pushed toward the camera, or None.
+    """Return (hand_count, "push" or "pull") for a steady move, or None.
 
     history holds (time, hand_count, mean_hand_size, center_x, center_y) for a
     steady run of frames. Pushing makes the open hands grow quickly in the image
-    while staying in place; raising your hands moves them, so it does not count.
+    and pulling back makes them shrink, both while staying in place; raising your
+    hands moves them, so it does not count.
     """
     while history and now - history[0][0] > PUSH_WINDOW_S:
         history.popleft()
@@ -166,10 +193,17 @@ def detect_push(history, now):
         return None
     first, last = history[0], history[-1]
     shift = ((last[3] - first[3]) ** 2 + (last[4] - first[4]) ** 2) ** 0.5
-    if last[2] / first[2] < PUSH_GROWTH or shift > PUSH_MAX_SHIFT:
+    growth = last[2] / first[2]
+    if shift > PUSH_MAX_SHIFT:
+        return None
+    if growth >= PUSH_GROWTH:
+        direction = "push"
+    elif growth <= 1 / PUSH_GROWTH:
+        direction = "pull"
+    else:
         return None
     history.clear()
-    return last[1]
+    return last[1], direction
 
 
 def open_windows_search():
@@ -326,7 +360,6 @@ def main():
     fist_until = 0.0
     push_until = 0.0
     push_text = ""
-    quit_at = None
     search_armed = True
     search_since = None
     help_image = None
@@ -415,7 +448,7 @@ def main():
             fist_since = None
             fist_armed = True
 
-        # Pushing open hands toward the camera: two hands close the app, one minimizes.
+        # Pushing open hands toward the camera: two hands close the window in front, one minimizes it.
         if stable and n_hands and all(is_hand_open(lm) for lm in result.hand_landmarks):
             sizes = [hand_scale(lm, fw, fh) for lm in result.hand_landmarks]
             cxs = [sum(lm[i].x for i in (0, 5, 9, 13, 17)) / 5 for lm in result.hand_landmarks]
@@ -423,14 +456,23 @@ def main():
             push_history.append((now, n_hands, sum(sizes) / n_hands,
                                  sum(cxs) / n_hands, sum(cys) / n_hands))
             pushed = detect_push(push_history, now)
-            if pushed == 2:
-                push_text = "Double Push"
+            if pushed and task_view_active():
+                # In Task View: push cancels (Esc), pull opens the selection (Enter).
+                if pushed[1] == "push":
+                    press_key(0x1B)  # VK_ESCAPE
+                    push_text = "Push"
+                else:
+                    press_key(0x0D)  # VK_RETURN
+                    push_text = "Pull"
                 push_until = now + PUSH_SHOW_S
-                quit_at = now + 0.6
-            elif pushed == 1:
-                push_text = "Push"
+            elif pushed and pushed[1] == "push":
                 push_until = now + PUSH_SHOW_S
-                minimize_camera_window()
+                if pushed[0] == 2:
+                    push_text = "Double Push"
+                    close_foreground_window()
+                else:
+                    push_text = "Push"
+                    minimize_foreground_window()
         else:
             push_history.clear()
 
@@ -466,8 +508,6 @@ def main():
             frame = draw_text_bottom(frame, gesture, font)
 
         cv2.imshow("Camera", frame)
-        if quit_at and now >= quit_at:
-            break
         raw_key = cv2.waitKeyEx(1)
         key = raw_key & 0xFF
         if key in (27, ord("q")):
