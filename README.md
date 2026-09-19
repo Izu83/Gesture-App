@@ -21,7 +21,7 @@
 
 ## <a name="contents"></a><img src="docs/headings/contents.png" alt="Contents" height="38">
 
-[Quick start](#quick-start) · [Gestures](#gestures) · [Voice commands](#voice-commands) · [Air mouse](#air-mouse) · [Keys](#keys) · [Tips](#tips-for-best-results) · [Troubleshooting](#troubleshooting) · [How it works](#how-it-works) · [Project structure](#project-structure) · [Tuning](#tuning)
+[Quick start](#quick-start) · [Gestures](#gestures) · [Voice commands](#voice-commands) · [Air mouse](#air-mouse) · [Keys](#keys) · [Tips](#tips-for-best-results) · [Troubleshooting](#troubleshooting) · [How it works](#how-it-works) · [Project structure](#project-structure) · [Tuning](#tuning) · [License](#license)
 
 ## <a name="quick-start"></a><img src="docs/headings/quick-start.png" alt="Quick start" height="38">
 
@@ -207,6 +207,11 @@ Sensitivity is set by constants near the top of `src/camera.py`:
 | `MIN_CUTOFF`, `BETA` (in `src/mouse.py`) | air mouse smoothing: lower `MIN_CUTOFF` is steadier when you move slowly, higher `BETA` follows fast moves with less lag |
 | `TAU` (in `src/mouse.py`) | how quickly the cursor glides to its target (smaller is snappier, larger is smoother) |
 
+## <a name="license"></a><img src="docs/headings/license.png" alt="License" height="38">
+
+Gesture-App is released under the [MIT License](LICENSE): you can use, change and share it freely, as long as you keep the copyright notice.
+
+The pieces it uses keep their own licenses: the [Baloo 2](https://fonts.google.com/specimen/Baloo+2) font (`src/Baloo2.ttf`) is under the SIL Open Font License, and the MediaPipe hand model and Whisper model are downloaded separately under their own open licenses.
 ## <a name="credits"></a><img src="docs/headings/credits.png" alt="Credits" height="38">
 
 Built with [OpenCV](https://opencv.org), [MediaPipe](https://developers.google.com/mediapipe), [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (OpenAI Whisper), [Pillow](https://python-pillow.org) and the [Baloo 2](https://fonts.google.com/specimen/Baloo+2) font.

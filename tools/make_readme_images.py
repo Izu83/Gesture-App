@@ -14,7 +14,7 @@ HEADINGS = os.path.join(DOCS, "headings")
 HEADING_TITLES = [  # README section titles, drawn in the app font because GitHub cannot change fonts
     "What it does", "Contents", "Quick start", "Gestures", "Voice commands", "Air mouse", "Keys",
     "Tips for best results", "Troubleshooting", "How it works", "Project structure",
-    "Tuning", "Credits",
+    "Tuning", "License", "Credits",
 ]
 
 TILES = [  # (col, row, file name) in the order build_help_image lays them out
