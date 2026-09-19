@@ -11,7 +11,7 @@
 
 ## <a name="what-it-does"></a><img src="docs/headings/what-it-does.png" alt="What it does" height="38">
 
-- **Tracks your hands** with your webcam and recognizes 13 gestures, from swipes and pushes to single-finger signs.
+- **Tracks your hands** with your webcam and recognizes 15 gestures, from swipes and pushes to single-finger signs.
 - **Controls Windows**: switch apps, open Task View, minimize or close the window in front, scroll, press Esc or Enter.
 - **Understands your voice**: make the Search sign and say *"open Spotify"*, *"play lo-fi music on YouTube"* or *"google weather in London"*.
 - **Runs offline**: hand tracking and speech recognition both run on your PC. Nothing you say or show is uploaded.
@@ -19,7 +19,7 @@
 
 ## <a name="contents"></a><img src="docs/headings/contents.png" alt="Contents" height="38">
 
-[Quick start](#quick-start) · [Gestures](#gestures) · [Voice commands](#voice-commands) · [Keys](#keys) · [Tips](#tips-for-best-results) · [Troubleshooting](#troubleshooting) · [How it works](#how-it-works) · [Project structure](#project-structure) · [Tuning](#tuning)
+[Quick start](#quick-start) · [Gestures](#gestures) · [Voice commands](#voice-commands) · [Air mouse](#air-mouse) · [Keys](#keys) · [Tips](#tips-for-best-results) · [Troubleshooting](#troubleshooting) · [How it works](#how-it-works) · [Project structure](#project-structure) · [Tuning](#tuning)
 
 ## <a name="quick-start"></a><img src="docs/headings/quick-start.png" alt="Quick start" height="38">
 
@@ -65,9 +65,9 @@ Hold the sign steady for a moment. The app waits about a third of a second after
     <td align="center"><img src="docs/gestures/escape.png" width="220"></td>
   </tr>
   <tr>
-    <td></td>
     <td align="center"><img src="docs/gestures/enter.png" width="220"></td>
-    <td></td>
+    <td align="center"><img src="docs/gestures/mouse-mode.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/mouse-click.png" width="220"></td>
   </tr>
 </table>
 
@@ -86,6 +86,8 @@ Hold the sign steady for a moment. The app waits about a third of a second after
 | **Scroll Down** | Index and middle finger up, ring and pinky curled | Slowly scrolls the window in front down while you hold it |
 | **Escape** | Only the pinky up, other fingers curled | Presses the Esc key (skipped while the Camera window is in front, since Esc would quit the app) |
 | **Enter** | Ring and pinky up, index and middle curled | Presses the Enter key |
+| **Mouse Mode** | Point with your index finger only (thumb tucked in) and hold | Starts the [air mouse](#air-mouse): your fingertip moves the cursor. A held fist stops it |
+| **Mouse Click** | In mouse mode: thumb to the side of your index finger | Tap = click, hold = drag. Middle finger up = right click |
 
 > **Careful with Push:** a two-hand push asks the window in front to close, like clicking its X. Programs with unsaved work will still ask you to save first.
 
@@ -116,6 +118,17 @@ Make the **Search** sign, say something, then pause. The camera window shows "Li
 - **Privacy:** your voice never leaves your PC. The one online request is finding the top video for "play ... on YouTube", and it only sends the search words.
 - **Bare "play" or "watch"** is treated as a YouTube video.
 
+## <a name="air-mouse"></a><img src="docs/headings/air-mouse.png" alt="Air mouse" height="38">
+
+Use your hand as a mouse:
+
+1. **Start:** point with your index finger only (thumb tucked in, other fingers curled) and hold for about a second. The camera window shows "Mouse mode on".
+2. **Move:** your index fingertip moves the cursor. A thin white rectangle in the camera window shows the part of the picture that covers the whole screen, so you can reach every edge. The cursor is smoothed, steady when you move slowly and quick when you move fast.
+3. **Click and drag:** touch the side of your index finger with your thumb. A quick tap is a click. Keep the thumb pressed while you move to drag.
+4. **Right click:** raise your middle finger for a moment. The cursor stays put while you do it.
+5. **Stop:** make a fist and hold. It also stops by itself if your hand is out of view for 6 seconds.
+
+While mouse mode is on, all the other gestures are switched off, so a swipe or push can't fire by accident. Esc or q in the camera window still quits the app.
 ## <a name="keys"></a><img src="docs/headings/keys.png" alt="Keys" height="38">
 
 | Key | Action |
@@ -155,6 +168,7 @@ Make the **Search** sign, say something, then pause. The camera window shows "Li
 Gesture-App/
 ├── src/
 │   ├── camera.py            camera loop, gesture detection and actions
+│   ├── mouse.py             air mouse: cursor, clicks and drags from your hand
 │   ├── voice.py             microphone listening and offline speech recognition
 │   ├── commands.py          turns what you said into an action (app, site or typing)
 │   ├── help_screen.py       draws the Help window

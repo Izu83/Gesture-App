@@ -3,6 +3,7 @@ import os
 import time
 import urllib.request
 from collections import deque
+from types import SimpleNamespace
 
 import cv2
 import mediapipe as mp
@@ -11,7 +12,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 from help_screen import build_help_image
 import commands
+import mouse
 import commands
+import mouse
 from voice import VoiceTyper, type_text, type_text
 from mediapipe.tasks.python import BaseOptions, vision
 
@@ -454,6 +457,8 @@ def main():
         return commands.route(text, type_into_search)
 
     commands.preload_apps()  # lists installed apps in the background
+    air = mouse.AirMouse()
+    point_since = None
     voice = VoiceTyper(handler=handle_voice, vocabulary=commands.vocabulary)
     voice.preload()  # loads the speech model in the background
     timestamp_ms = 0
@@ -467,6 +472,24 @@ def main():
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         timestamp_ms += 33
         result = landmarker.detect_for_video(image, timestamp_ms)
+
+        # Air mouse: point (index only) and hold to start, fist and hold to stop. While it
+        # is on, the other gestures see no hands, so nothing else can fire by accident.
+        mouse_now = time.time()
+        if air.active:
+            for lm in result.hand_landmarks:
+                draw_hand(frame, lm)
+            air.update(result.hand_landmarks, mouse_now)
+            air.draw(frame, result.hand_landmarks)
+            result = SimpleNamespace(hand_landmarks=[], handedness=[])
+            point_since = None
+        elif len(result.hand_landmarks) == 1 and mouse.is_pointing(result.hand_landmarks[0]):
+            point_since = point_since or mouse_now
+            if mouse_now - point_since >= mouse.POINT_HOLD_S:
+                air.start(mouse_now)
+                point_since = None
+        else:
+            point_since = None
 
         open_palms = 0
         middle_finger = False
@@ -654,6 +677,8 @@ def main():
         elif open_palms == 1:
             gesture = "Open Palm"
 
+        if air.label:  # mouse mode messages come first
+            gesture = air.label
         if gesture:
             frame = draw_text_bottom(frame, gesture, font)
 
