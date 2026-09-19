@@ -72,6 +72,8 @@ SEARCH_HAND = hand("loop", "loop", "up", "up", "up")
 MIDDLE_HAND = hand("in", "curl", "up", "curl", "curl")
 HELP_HAND = hand("out", "up", "curl", "curl", "up")
 FIST_HAND = hand("in", "curl", "curl", "curl", "curl")
+TWO_FINGER_HAND = hand("in", "up", "up", "curl", "curl")
+L_HAND = hand("out", "up", "curl", "curl", "curl")
 
 
 def draw_skeleton(draw, pts, cx, cy, scale=1.0, mirror=False):
@@ -102,6 +104,12 @@ def draw_growth_arrows(draw, cx, cy, outward):
         px, py = -uy, ux
         draw.polygon([b, (b[0] - 16 * ux + 9 * px, b[1] - 16 * uy + 9 * py),
                       (b[0] - 16 * ux - 9 * px, b[1] - 16 * uy - 9 * py)], fill=ORANGE)
+
+
+def draw_arrow_v(draw, y_from, y_to, x):
+    draw.line([(x, y_from), (x, y_to)], fill=ORANGE, width=6)
+    d = 1 if y_to > y_from else -1
+    draw.polygon([(x, y_to), (x - 12, y_to - 18 * d), (x + 12, y_to - 18 * d)], fill=ORANGE)
 
 
 def load(path, size):
@@ -138,7 +146,7 @@ def tile(draw, col, row, title, how, does, art, fonts):
 def build_help_image():
     fonts = {"title": load(TITLE_FONT, 52), "name": load(TITLE_FONT, 26),
              "sub": load(TEXT_FONT, 17)}
-    rows = 3
+    rows = 4
     img = Image.new("RGB", (TILE_W * COLS, TITLE_H + TILE_H * rows + FOOTER_H), BG)
     draw = ImageDraw.Draw(img)
     centered(draw, "Gesture Help", fonts["title"], img.width / 2, 20, ORANGE)
@@ -156,6 +164,15 @@ def build_help_image():
         draw_skeleton(d, OPEN_HAND, x, y + 190)
         draw_arrow(d, x, x - 120, y + 30)
         draw_arrow(d, x, x + 120, y + 30)
+
+    def scroll(pts, up):
+        def art(d, x, y):
+            draw_skeleton(d, pts, x - 25, y + 190)
+            if up:
+                draw_arrow_v(d, y + 250, y + 80, x + 105)
+            else:
+                draw_arrow_v(d, y + 80, y + 250, x + 105)
+        return art
 
     def growth(outward):
         def art(d, x, y):
@@ -183,6 +200,11 @@ def build_help_image():
          growth(True), fonts)
     tile(draw, 2, 2, "Pull", "Open hand back away\nfrom the camera",
          "In Task View: opens the\nselected window", growth(False), fonts)
+    tile(draw, 0, 3, "Scroll Up", "Thumb and index out in an L,\nother fingers curled",
+         "Slowly scrolls the window\nin front up while held", scroll(L_HAND, True), fonts)
+    tile(draw, 1, 3, "Scroll Down", "Index and middle finger up,\nring and pinky curled",
+         "Slowly scrolls the window\nin front down while held", scroll(TWO_FINGER_HAND, False), fonts)
+
     centered(draw, "Scroll: mouse wheel, arrows or W/S. Close: the X or H",
              fonts["sub"], img.width / 2, img.height - 38, GREY)
     return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)

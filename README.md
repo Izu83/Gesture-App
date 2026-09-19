@@ -38,6 +38,8 @@ The camera window is mirrored and shows your hand skeleton. The name of the gest
 | Fist | Hold a closed fist | Opens Task View (Win+Tab) |
 | Push | Open hands toward the camera | One hand minimizes the window in front, two hands close it. In Task View: cancels (Esc) |
 | Pull | Open hand back away from the camera | In Task View: opens the selected window (Enter) |
+| Scroll Up | Thumb and index out in an "L", other fingers curled | Slowly scrolls the window in front up while you hold it |
+| Scroll Down | Index and middle finger up, ring and pinky curled | Slowly scrolls the window in front down while you hold it |
 
 Two-hand push asks the program to close, so programs with unsaved work will still ask you to save.
 
@@ -58,6 +60,11 @@ Two-hand push asks the program to close, so programs with unsaved work will stil
     <td align="center"><img src="docs/gestures/fist.png" width="220"></td>
     <td align="center"><img src="docs/gestures/push.png" width="220"></td>
     <td align="center"><img src="docs/gestures/pull.png" width="220"></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/gestures/scroll-up.png" width="220"></td>
+    <td align="center"><img src="docs/gestures/scroll-down.png" width="220"></td>
+    <td></td>
   </tr>
 </table>
 

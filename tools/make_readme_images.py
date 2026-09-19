@@ -15,6 +15,7 @@ TILES = [  # (col, row, file name) in the order build_help_image lays them out
     (0, 0, "open-palm"), (1, 0, "double-open-palm"), (2, 0, "swipe"),
     (0, 1, "search"), (1, 1, "middle-finger"), (2, 1, "help"),
     (0, 2, "fist"), (1, 2, "push"), (2, 2, "pull"),
+    (0, 3, "scroll-up"), (1, 3, "scroll-down"),
 ]
 
 

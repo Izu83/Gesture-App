@@ -40,6 +40,9 @@ PUSH_WINDOW_S = 0.5  # time window the hand growth is measured over
 PUSH_GROWTH = 1.35  # hand must get this much bigger (moving toward the camera)
 PUSH_MAX_SHIFT = 0.10  # a push stays in place; raising your hands does not count
 STABLE_S = 0.3  # hands must be tracked steadily this long before swipes or pushes count
+SCROLL_RATE = 240  # wheel units per second while a scroll sign is held (120 = one notch)
+SCROLL_HOLD_S = 0.3  # the sign must be held this long before it starts scrolling
+SCROLL_SHOW_S = 0.3
 PUSH_SHOW_S = 1.0
 FIST_HOLD_S = 0.5  # how long the fist must be held to trigger
 SEARCH_HOLD_S = 0.3  # how long the Search sign must be held to trigger
@@ -154,6 +157,33 @@ def hand_scale(lm, w, h):
         return (((lm[a].x - lm[b].x) * w) ** 2 + ((lm[a].y - lm[b].y) * h) ** 2) ** 0.5
 
     return (d(WRIST, 9) + d(5, 17)) / 2
+
+
+def is_two_fingers(lm):
+    # Index and middle fingers up, ring and pinky curled; the thumb is ignored.
+    return (
+        dist(lm[8], lm[WRIST]) > dist(lm[6], lm[WRIST])
+        and dist(lm[12], lm[WRIST]) > dist(lm[10], lm[WRIST])
+        and dist(lm[16], lm[WRIST]) < dist(lm[13], lm[WRIST])
+        and dist(lm[20], lm[WRIST]) < dist(lm[17], lm[WRIST])
+    )
+
+
+def scroll_windows(amount):
+    # Mouse wheel: positive scrolls up, negative scrolls down (120 = one notch).
+    ctypes.windll.user32.mouse_event(0x0800, 0, 0, amount, 0)  # MOUSEEVENTF_WHEEL
+
+
+def is_l_sign(lm):
+    # "L" shape: thumb and index out, middle, ring and pinky curled.
+    thumb_out = dist(lm[THUMB_TIP], lm[PINKY_MCP]) > dist(lm[THUMB_IP], lm[PINKY_MCP])
+    return (
+        thumb_out
+        and dist(lm[8], lm[WRIST]) > dist(lm[6], lm[WRIST])
+        and dist(lm[12], lm[WRIST]) < dist(lm[9], lm[WRIST])
+        and dist(lm[16], lm[WRIST]) < dist(lm[13], lm[WRIST])
+        and dist(lm[20], lm[WRIST]) < dist(lm[17], lm[WRIST])
+    )
 
 
 def is_fist(lm):
@@ -354,6 +384,12 @@ def main():
     swipe_until = 0.0
     push_history = deque()
     prev_n_hands = 0
+    scroll_active = None
+    scroll_since = 0.0
+    last_scroll_t = 0.0
+    scroll_accum = 0.0
+    scroll_text = ""
+    scroll_until = 0.0
     n_changed_at = 0.0
     fist_armed = True
     fist_since = None
@@ -406,8 +442,35 @@ def main():
             push_history.clear()
         stable = now - n_changed_at >= STABLE_S
 
-        # Swipes use a single, steadily tracked hand.
+        # Static scroll signs, held for slow scrolling: the "L" shape (thumb + index)
+        # scrolls up, index + middle finger scrolls down.
+        scroll_dir = None
         if n_hands == 1 and stable:
+            lm = result.hand_landmarks[0]
+            if is_l_sign(lm):
+                scroll_dir = "up"
+            elif is_two_fingers(lm):
+                scroll_dir = "down"
+        if scroll_dir:
+            if scroll_dir != scroll_active:
+                scroll_active = scroll_dir
+                scroll_since = now
+                scroll_accum = 0.0
+            elif now - scroll_since >= SCROLL_HOLD_S:
+                sign = 1 if scroll_dir == "up" else -1
+                scroll_accum += sign * SCROLL_RATE * (now - last_scroll_t)
+                amount = int(scroll_accum)
+                if abs(amount) >= 40:
+                    scroll_windows(amount)
+                    scroll_accum -= amount
+                scroll_text = "Scroll Up" if scroll_dir == "up" else "Scroll Down"
+                scroll_until = now + SCROLL_SHOW_S
+            last_scroll_t = now
+        else:
+            scroll_active = None
+            scroll_accum = 0.0
+        # Swipes use a single, steadily tracked hand.
+        if n_hands == 1 and stable and scroll_dir is None:
             lm = result.hand_landmarks[0]
             cx = sum(lm[i].x for i in (0, 5, 9, 13, 17)) / 5
             cy = sum(lm[i].y for i in (0, 5, 9, 13, 17)) / 5
@@ -489,6 +552,8 @@ def main():
         gesture = ""
         if middle_finger:
             gesture = "Fuck you too"
+        elif now < scroll_until:
+            gesture = scroll_text
         elif now < fist_until:
             gesture = "Fist"
         elif now < push_until:
