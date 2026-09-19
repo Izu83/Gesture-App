@@ -10,7 +10,9 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from help_screen import build_help_image
-from voice import VoiceTyper
+import commands
+import commands
+from voice import VoiceTyper, type_text, type_text
 from mediapipe.tasks.python import BaseOptions, vision
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "hand_landmarker.task")
@@ -436,7 +438,18 @@ def main():
     help_open = False
     help_armed = True
     help_since = None
-    voice = VoiceTyper()
+    def handle_voice(text):
+        # Commands (open an app or site) run right away; anything else is typed
+        # into Windows Search, and you finish it with the Enter sign.
+        def type_into_search(words):
+            open_windows_search()
+            time.sleep(0.7)  # let the search box open
+            type_text(words)
+
+        return commands.route(text, type_into_search)
+
+    commands.preload_apps()  # lists installed apps in the background
+    voice = VoiceTyper(handler=handle_voice, vocabulary=commands.vocabulary)
     voice.preload()  # loads the speech model in the background
     timestamp_ms = 0
     while True:
@@ -604,8 +617,7 @@ def main():
         if search and not middle_finger and help_hands < 2:
             search_since = search_since or now
             if search_armed and now - search_since >= SEARCH_HOLD_S:
-                open_windows_search()
-                voice.listen_and_type()  # speak your search; it is typed for you
+                voice.listen_and_type()  # say a command or a search
                 search_armed = False
         else:
             search_since = None
