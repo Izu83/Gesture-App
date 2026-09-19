@@ -131,7 +131,7 @@ Make the **Search** sign, say something, then pause. The camera window shows "Li
 Use your hand as a mouse:
 
 1. **Start:** point with your index finger only (thumb tucked in, other fingers curled) and hold for about a second. The camera window shows "Mouse mode on".
-2. **Move:** your index fingertip moves the cursor. A thin white rectangle in the camera window shows the part of the picture that covers the whole screen, so you can reach every edge. The cursor is smoothed, steady when you move slowly and quick when you move fast.
+2. **Move:** your index fingertip moves the cursor. A thin white rectangle in the camera window shows the part of the picture that covers the whole screen, so you can reach every edge. The cursor is smoothed with a One Euro filter (steady when you move slowly, quick when you move fast) and glides between camera frames about 200 times a second, so it does not move in steps.
 3. **Click and drag:** raise your pinky. A quick tap is a click. Keep the pinky up while you move to drag, and lower it to let go. The cursor jumps back to where it was a moment before, so raising the pinky does not nudge your click.
 4. **Right click:** raise your middle finger for a moment. The cursor stays put while you do it.
 5. **Stop:** make a fist and hold. It also stops by itself if your hand is out of view for 6 seconds.
@@ -199,6 +199,8 @@ Sensitivity is set by constants near the top of `src/camera.py`:
 | `STABLE_S` | how long hands must be tracked steadily before swipes and pushes count |
 | `FIST_HOLD_S`, `ESCAPE_HOLD_S`, `ENTER_HOLD_S` | how long a sign is held before it fires |
 | `SCROLL_RATE` | scroll speed while a scroll sign is held |
+| `MIN_CUTOFF`, `BETA` (in `src/mouse.py`) | air mouse smoothing: lower `MIN_CUTOFF` is steadier when you move slowly, higher `BETA` follows fast moves with less lag |
+| `TAU` (in `src/mouse.py`) | how quickly the cursor glides to its target (smaller is snappier, larger is smoother) |
 
 ## <a name="credits"></a><img src="docs/headings/credits.png" alt="Credits" height="38">
 

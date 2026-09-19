@@ -345,15 +345,18 @@ def load_font(size):
 
 
 def draw_text_bottom(frame, text, font):
-    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    # Only the strip along the bottom is converted, which is much faster than the whole frame.
+    h, w = frame.shape[:2]
+    strip_h = min(h, 200)
+    img = Image.fromarray(cv2.cvtColor(frame[h - strip_h:], cv2.COLOR_BGR2RGB))
     draw = ImageDraw.Draw(img)
-    w, h = img.size
     box = draw.textbbox((0, 0), text, font=font)
     x = (w - (box[2] - box[0])) // 2 - box[0]
-    y = h - (box[3] - box[1]) - 30 - box[1]
+    y = strip_h - (box[3] - box[1]) - 30 - box[1]
     draw.text((x, y), text, font=font, fill=TEXT_COLOR,
               stroke_width=2, stroke_fill=(0, 15, 8))
-    return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    frame[h - strip_h:] = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    return frame
 
 
 def is_hand_open(lm):
@@ -411,13 +414,19 @@ def draw_hand(frame, lm):
 def main():
     global help_scroll
     ensure_model()
-    landmarker = vision.HandLandmarker.create_from_options(
-        vision.HandLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path=MODEL_PATH),
-            running_mode=vision.RunningMode.VIDEO,
-            num_hands=2,
+    def make_landmarker(max_hands):
+        return vision.HandLandmarker.create_from_options(
+            vision.HandLandmarkerOptions(
+                base_options=BaseOptions(model_asset_path=MODEL_PATH),
+                running_mode=vision.RunningMode.VIDEO,
+                num_hands=max_hands,
+            )
         )
-    )
+
+    landmarker = make_landmarker(2)
+    # In mouse mode only one hand is needed, and looking for a second hand every frame
+    # is slow, so a one-hand tracker takes over. A higher frame rate means a smoother cursor.
+    landmarker_solo = make_landmarker(1)
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -491,7 +500,8 @@ def main():
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         timestamp_ms += 33
-        result = landmarker.detect_for_video(image, timestamp_ms)
+        result = (landmarker_solo if air.active else landmarker).detect_for_video(
+            image, timestamp_ms)
 
         # Air mouse: point (index only) and hold to start, fist and hold to stop. While it
         # is on, the other gestures see no hands, so nothing else can fire by accident.
@@ -735,6 +745,7 @@ def main():
 
     voice.close()
     landmarker.close()
+    landmarker_solo.close()
     cap.release()
     cv2.destroyAllWindows()
 

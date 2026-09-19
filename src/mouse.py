@@ -6,6 +6,7 @@ While it is on, the other gestures are switched off so they cannot fire by accid
 """
 import ctypes
 import math
+import threading
 import time
 from collections import deque
 
@@ -81,30 +82,119 @@ def button(name, down):
     user32.mouse_event(flags, 0, 0, 0, 0)
 
 
+class OneEuro:
+    """One Euro filter: very steady when the hand is slow, quick to follow when it moves fast."""
+
+    def __init__(self, min_cutoff, beta, d_cutoff=1.0):
+        self.min_cutoff, self.beta, self.d_cutoff = min_cutoff, beta, d_cutoff
+        self.t = self.x = self.dx = None
+
+    @staticmethod
+    def _alpha(dt, cutoff):
+        return 1.0 / (1.0 + 1.0 / (2 * math.pi * cutoff) / dt)
+
+    def reset(self, x=None):
+        self.t, self.x, self.dx = None, x, None
+
+    def __call__(self, x, t):
+        if self.x is None or self.t is None:
+            self.t, self.x, self.dx = t, x, 0.0
+            return x
+        dt = max(t - self.t, 1e-3)
+        dx = (x - self.x) / dt
+        self.dx += self._alpha(dt, self.d_cutoff) * (dx - self.dx)
+        cutoff = self.min_cutoff + self.beta * abs(self.dx)
+        self.x += self._alpha(dt, cutoff) * (x - self.x)
+        self.t = t
+        return self.x
+
+
 class Smoother:
-    """Smooths the cursor: steady when you move slowly, quick when you move fast."""
+    """Removes the shake from the hand tracking. Works on screen pixels."""
+
+    MIN_CUTOFF = 0.5  # Hz: lower = steadier when slow
+    BETA = 0.01  # higher = less lag when you move fast
 
     def __init__(self):
-        self.x = self.y = None
+        self.fx = OneEuro(self.MIN_CUTOFF, self.BETA)
+        self.fy = OneEuro(self.MIN_CUTOFF, self.BETA)
 
     def reset(self):
-        self.x = self.y = None
+        self.fx.reset()
+        self.fy.reset()
 
-    def __call__(self, x, y):
-        if self.x is None:
-            self.x, self.y = x, y
-        else:
-            speed = math.hypot(x - self.x, y - self.y)  # pixels since the last frame
-            alpha = min(0.85, 0.12 + speed / 300)
-            self.x += (x - self.x) * alpha
-            self.y += (y - self.y) * alpha
-        return self.x, self.y
+    def set(self, x, y, t):
+        self.fx.t, self.fx.x, self.fx.dx = t, x, 0.0
+        self.fy.t, self.fy.x, self.fy.dx = t, y, 0.0
 
+    def __call__(self, x, y, t):
+        return self.fx(x, t), self.fy(y, t)
+
+
+class CursorDriver:
+    """Moves the real cursor about 200 times a second, gliding toward the latest target.
+
+    The camera only gives a new hand position about 20 times a second, so moving the cursor
+    once per camera frame looks steppy. This turns those steps into smooth motion."""
+
+    TAU = 0.03  # seconds: how quickly the cursor catches up with the target
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._target = self._pos = None
+        self._running = False
+
+    def start(self):
+        if self._running:
+            return
+        self._running = True
+        ctypes.windll.winmm.timeBeginPeriod(1)  # 1 ms timer, so sleeps are short
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def stop(self):
+        if self._running:
+            self._running = False
+            ctypes.windll.winmm.timeEndPeriod(1)
+
+    def set_target(self, x, y):
+        with self._lock:
+            self._target = (x, y)
+            if self._pos is None:
+                self._pos = (x, y)
+
+    def jump(self, x, y):
+        with self._lock:
+            self._target = self._pos = (x, y)
+        move_cursor(x, y)
+
+    def reset(self):
+        with self._lock:
+            self._target = self._pos = None
+
+    def _loop(self):
+        last = time.perf_counter()
+        shown = None
+        while self._running:
+            time.sleep(0.004)
+            now = time.perf_counter()
+            dt, last = now - last, now
+            with self._lock:
+                if self._target is None:
+                    continue
+                k = 1.0 - math.exp(-dt / self.TAU)
+                px = self._pos[0] + (self._target[0] - self._pos[0]) * k
+                py = self._pos[1] + (self._target[1] - self._pos[1]) * k
+                self._pos = (px, py)
+            point = (round(px), round(py))
+            if point != shown:
+                move_cursor(*point)
+                shown = point
 
 class AirMouse:
-    def __init__(self):
+    def __init__(self, driver=None):
         self.active = False
         self._smooth = Smoother()
+        self._driver = driver or CursorDriver()
         self._pressed = False
         self._press_since = 0.0
         self._freeze_until = 0.0
@@ -121,6 +211,8 @@ class AirMouse:
         self.active = True
         self._last_seen = now
         self._smooth.reset()
+        self._driver.reset()
+        self._driver.start()
         self._pressed = False
         self._trail.clear()
         self._middle_since = self._fist_since = None
@@ -133,6 +225,7 @@ class AirMouse:
             button("left", False)
         self.active = False
         self._pressed = False
+        self._driver.stop()
         self._flash, self._flash_until = "Mouse mode off", now + FLASH_S
 
     @property
@@ -185,8 +278,8 @@ class AirMouse:
             nx = min(max((lm[INDEX_TIP].x - x0) / (x1 - x0), 0.0), 1.0)
             ny = min(max((lm[INDEX_TIP].y - y0) / (y1 - y0), 0.0), 1.0)
             if now >= self._freeze_until:
-                x, y = self._smooth(nx * (SCREEN_W - 1), ny * (SCREEN_H - 1))
-                move_cursor(x, y)
+                x, y = self._smooth(nx * (SCREEN_W - 1), ny * (SCREEN_H - 1), now)
+                self._driver.set_target(x, y)
                 self._trail.append((now, x, y))
                 while self._trail and now - self._trail[0][0] > 0.5:
                     self._trail.popleft()
@@ -199,8 +292,8 @@ class AirMouse:
             back = [p for p in self._trail if p[0] <= now - SETTLE_BACK_S]
             if back:
                 _, x, y = back[-1]
-                move_cursor(x, y)
-                self._smooth.x, self._smooth.y = x, y
+                self._driver.jump(x, y)
+                self._smooth.set(x, y, now)
             self._freeze_until = now + CLICK_FREEZE_S
             self._pressed, self._press_since = True, now
             button("left", True)
